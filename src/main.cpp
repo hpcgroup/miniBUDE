@@ -427,10 +427,12 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
   std::string prefix(indent, ' ');
   std::cout.precision(3);
 
-  auto contextMs = r.sample.contextTime
-                       ? std::to_string(elapsedMillis(r.sample.contextTime->first, r.sample.contextTime->second))
+  auto hostToDeviceMs = r.sample.hostToDevice
+                       ? std::to_string(elapsedMillis(r.sample.hostToDevice->first, r.sample.hostToDevice->second))
                        : "~";
-
+  auto deviceToHostMs = r.sample.deviceToHost
+                       ? std::to_string(elapsedMillis(r.sample.deviceToHost->first, r.sample.deviceToHost->second))
+                       : "~";
   std::vector<double> iterationTimesMs;
   std::transform(r.sample.kernelTimes.begin(), //
                  r.sample.kernelTimes.end(), std::back_inserter(iterationTimesMs),
@@ -444,7 +446,8 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
             << "ppwi: " << r.sample.ppwi << ", "
             << "wgsize: " << r.sample.wgsize << " }\n"
             << prefix << "   raw_iterations:      [" << mk_string(iterationTimesMs) << "]\n"
-            << prefix << "   context_ms:          " << contextMs << "\n"
+            << prefix << "   host_to_device_ms:          " << hostToDeviceMs << "\n"
+            << prefix << "   device_to_host_ms:          " << deviceToHostMs << "\n"
             << prefix << "   sum_ms:              " << r.ms.sum << "\n"
             << prefix << "   avg_ms:              " << r.ms.mean << "\n"
             << prefix << "   min_ms:              " << r.ms.min << "\n"
