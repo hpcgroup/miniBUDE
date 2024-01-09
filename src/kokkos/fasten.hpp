@@ -172,7 +172,7 @@ public:
   }
 
   template <typename T> static Kokkos::View<T *> mkView(const std::string &name, const std::vector<T> &xs) {
-    Kokkos::View<T *> view(name, xs.size());
+    Kokkos::View<T *> view(Kokkos::ViewAllocateWithoutInitializing(name), xs.size());
     auto mirror = Kokkos::create_mirror_view(view);
     for (size_t i = 0; i < xs.size(); i++)
       mirror[i] = xs[i];
@@ -199,7 +199,6 @@ public:
     Sample sample(PPWI, wgsize, p.nposes());
 
     {
-
       auto hostToDeviceStart = now();
 
       auto protein = mkView("protein", p.protein);
@@ -211,7 +210,7 @@ public:
       auto transforms_4 = mkView("transforms_4", p.poses[4]);
       auto transforms_5 = mkView("transforms_5", p.poses[5]);
       auto forcefield = mkView("forcefield", p.forcefield);
-      Kokkos::View<float *> results("results", sample.energies.size());
+      Kokkos::View<float *> results(Kokkos::ViewAllocateWithoutInitializing("results"), sample.energies.size());
       Kokkos::fence();
 
       auto hostToDeviceEnd = now();
