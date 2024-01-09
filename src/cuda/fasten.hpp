@@ -253,7 +253,7 @@ public:
 
     Sample sample(PPWI, wgsize, p.nposes());
 
-    auto contextStart = now();
+    auto hostToDeviceStart = now();
     auto protein = allocate(p.protein);
     auto ligand = allocate(p.ligand);
     auto transforms_0 = allocate(p.poses[0]);
@@ -265,9 +265,9 @@ public:
     auto forcefield = allocate(p.forcefield);
     auto results = allocate<float>(sample.energies.size());
     checkError(cudaDeviceSynchronize());
-    auto contextEnd = now();
+    auto hostToDeviceEnd = now();
 
-    sample.contextTime = {contextStart, contextEnd};
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
 
     size_t global = std::ceil(double(p.nposes()) / PPWI);
     global = std::ceil(double(global) / double(wgsize));
@@ -285,8 +285,13 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
+    auto deviceToHostStart = now(); 
+    
     checkError(
         cudaMemcpy(sample.energies.data(), results, sample.energies.size() * sizeof(float), cudaMemcpyDeviceToHost));
+    
+    auto deviceToHostEnd = now(); 
+    sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
 
     free(protein);
     free(ligand);
