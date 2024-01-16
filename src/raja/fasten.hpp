@@ -16,31 +16,31 @@
 
 template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
 
-  using launch_policy = RAJA::expt::LaunchPolicy< //
+  using launch_policy = RAJA::LaunchPolicy< //
 #if defined(RAJA_ENABLE_OPENMP)
-      RAJA::expt::omp_launch_t
+      RAJA:::omp_launch_t
 #else
-      RAJA::expt::seq_launch_t
+      RAJA::seq_launch_t
 #endif
 #if defined(RAJA_ENABLE_CUDA)
       ,
-      RAJA::expt::cuda_launch_t<false>
+      RAJA::cuda_launch_t<false>
 #endif
 #if defined(RAJA_ENABLE_HIP)
       ,
-      RAJA::expt::hip_launch_t<false>
+      RAJA::hip_launch_t<false>
 #endif
 #if defined(RAJA_ENABLE_SYCL)
       ,
-      RAJA::expt::sycl_launch_t<false>
+      RAJA::sycl_launch_t<false>
 #endif
       >;
 
-  using teams_x = RAJA::expt::LoopPolicy< //
+  using teams_x = RAJA::LoopPolicy< //
 #if defined(RAJA_ENABLE_OPENMP)
       RAJA::omp_parallel_for_exec
 #else
-      RAJA::loop_exec
+      RAJA::seq_exec
 #endif
 #if defined(RAJA_ENABLE_CUDA)
       ,
@@ -52,8 +52,8 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
 #endif
       >;
 
-  using threads_x = RAJA::expt::LoopPolicy< //
-      RAJA::loop_exec
+  using threads_x = RAJA::LoopPolicy< //
+      RAJA::seq_exec
 #if defined(RAJA_ENABLE_CUDA)
       ,
       RAJA::cuda_thread_x_loop
@@ -81,11 +81,11 @@ public:
     global = int(std::ceil(double(global) / double(wgsize)));
     size_t local = int(wgsize);
 
-    RAJA::expt::launch<launch_policy>(                                           //
-        static_cast<RAJA::expt::ExecPlace>(device),                              //
-        RAJA::expt::Grid(RAJA::expt::Teams(global), RAJA::expt::Threads(local)), //
-        [=] RAJA_HOST_DEVICE(RAJA::expt::LaunchContext ctx) {                    //
-          RAJA::expt::loop<teams_x>(ctx, RAJA::RangeSegment(0, global), [&](int gid) {
+    RAJA::launch<launch_policy>(                                           //
+        static_cast<RAJA::ExecPlace>(device),                              //
+        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local)), //
+        [=] RAJA_HOST_DEVICE(RAJA::LaunchContext ctx) {                    //
+          RAJA::loop<teams_x>(ctx, RAJA::RangeSegment(0, global), [&](int gid) {
 #ifdef USE_LOCAL_ARRAY
   #error RAJA does not appear to support dynamically allocated LocalArray w/ the shared memory policy
             RAJA_TEAM_SHARED FFParams *local_forcefield;
@@ -95,7 +95,7 @@ public:
             float etot[PPWI];
             float transform[3][4][PPWI];
 
-            RAJA::expt::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
+            RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
               size_t ix = gid * local * PPWI + lid;
               ix = ix < nposes ? ix : nposes - PPWI;
 
@@ -135,9 +135,10 @@ public:
               local_forcefield = forcefields;
 #endif
             });
+                                
             ctx.teamSync();
 
-            RAJA::expt::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
+            RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
               // Loop over ligand atoms
               size_t il = 0;
               do {
@@ -267,7 +268,7 @@ public:
   [[nodiscard]] std::string name() { return "raja"; };
 
   [[nodiscard]] std::vector<Device> enumerateDevices() override {
-    std::vector<Device> devices{{RAJA::expt::ExecPlace::HOST, "RAJA Host device"}};
+    std::vector<Device> devices{{RAJA::ExecPlace::HOST, "RAJA Host device"}};
 #if defined(RAJA_DEVICE_ACTIVE)
   #if defined(RAJA_ENABLE_CUDA)
     const auto deviceName = "RAJA CUDA device";
@@ -278,7 +279,7 @@ public:
   #if defined(RAJA_ENABLE_SYCL)
     const auto deviceName = "Raja SYCL device";
   #endif
-    devices.template emplace_back(RAJA::expt::ExecPlace::DEVICE, deviceName);
+    devices.template emplace_back(RAJA::ExecPlace::DEVICE, deviceName);
 #endif
     return devices;
   };
