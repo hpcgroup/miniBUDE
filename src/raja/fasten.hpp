@@ -255,10 +255,13 @@ public:
   static void synchronise() {
     // nothing to do for host devices
 #if defined(RAJA_ENABLE_CUDA)
-    cudaDeviceSynchronize();
+    RAJA::synchronize<RAJA::cuda_synchronize>();
 #endif
 #if defined(RAJA_ENABLE_HIP)
-    hipDeviceSynchronize();
+    RAJA::synchronize<RAJA::hip_synchronize>();
+#endif
+#if defined(RAJA_ENABLE_SYCL)
+    RAJA::synchronize<RAJA::sycl_synchronize>();
 #endif
   }
 
