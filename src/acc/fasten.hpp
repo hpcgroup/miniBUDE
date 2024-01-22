@@ -158,78 +158,77 @@ public:
 
     Sample sample(PPWI, wgsize, p.nposes());
 
-    auto contextStart = now();
-
-    std::array<float *, 6> poses{};
-    auto protein = static_cast<Atom *>(std::malloc(sizeof(Atom) * p.natpro()));
-    auto ligand = static_cast<Atom *>(std::malloc(sizeof(Atom) * p.natlig()));
-    auto forcefield = static_cast<FFParams *>(std::malloc(sizeof(FFParams) * p.ntypes()));
-    auto energies = static_cast<float *>(std::malloc(sizeof(float) * p.nposes()));
-
-    for (size_t i = 0; i < 6; i++) {
-      poses[i] = static_cast<float *>(std::malloc(sizeof(float) * p.nposes()));
-      std::copy(p.poses[i].begin(), p.poses[i].end(), poses[i]);
-    }
-
-    std::copy(p.protein.begin(), p.protein.end(), protein);
-    std::copy(p.ligand.begin(), p.ligand.end(), ligand);
-    std::copy(p.forcefield.begin(), p.forcefield.end(), forcefield);
-    std::fill(energies, energies + p.nposes(), 0.0);
-
-    auto contextEnd = now();
-    sample.contextTime = {contextStart, contextEnd};
-
-    auto poses_0 = poses[0];
-    auto poses_1 = poses[1];
-    auto poses_2 = poses[2];
-    auto poses_3 = poses[3];
-    auto poses_4 = poses[4];
-    auto poses_5 = poses[5];
     const auto ntypes = p.ntypes();
     const auto nposes = p.nposes();
     const auto natlig = p.natlig();
     const auto natpro = p.natpro();
 
-// clang-format off
-#pragma acc data                                    \
-        copyin(                                     \
-            protein[:natpro], ligand[:natlig],      \
-            forcefield[:ntypes], poses_0[:nposes],  \
-            poses_1[:nposes], poses_2[:nposes],     \
-            poses_3[:nposes], poses_4[:nposes],     \
-            poses_5[:nposes])                       \
-        copyout(energies[:nposes])
-{
-      // clang-format on
-      for (size_t i = 0; i < p.totalIterations(); ++i) {
-        auto kernelStart = now();
+    auto poses = p.poses.data();  
+    auto protein = p.protein.data();
+    auto ligand = p.ligand.data();
+    auto forcefield = p.forcefield.data();
+    auto energies = static_cast<float *>(std::calloc(nposes, sizeof(float)));
 
-// clang-format off
-#pragma acc parallel loop  \
-        present(                                    \
-            protein[:natpro], ligand[:natlig],      \
-            forcefield[:ntypes], poses_0[:nposes],  \
-            poses_1[:nposes], poses_2[:nposes],     \
-            poses_3[:nposes], poses_4[:nposes],     \
-            poses_5[:nposes], energies[:nposes]) wait
-        // clang-format on
-        for (size_t group = 0; group < (nposes / PPWI); group++) {
-          fasten_main<PPWI>(group, ntypes, nposes, natlig, natpro,                //
-                            protein, ligand,                                      //
-                            poses_0, poses_1, poses_2, poses_3, poses_4, poses_5, //
-                            forcefield, energies);
-        }
-        auto kernelEnd = now();
-        sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
+    auto poses_0 = poses[0].data();
+    auto poses_1 = poses[1].data();
+    auto poses_2 = poses[2].data();
+    auto poses_3 = poses[3].data();
+    auto poses_4 = poses[4].data();
+    auto poses_5 = poses[5].data();
+
+    // clang-format off
+    auto hostToDeviceStart = now();
+        
+  #pragma acc enter data                      \
+    copyin(                                   \
+      protein[:natpro], ligand[:natlig],      \
+      forcefield[:ntypes], poses_0[:nposes],  \
+      poses_1[:nposes], poses_2[:nposes],     \
+      poses_3[:nposes], poses_4[:nposes],     \
+      poses_5[:nposes])                       \
+    create(energies[:nposes])
+
+    auto hostToDeviceEnd = now();
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+
+    // clang-format on
+    for (size_t i = 0; i < p.totalIterations(); ++i) {
+      auto kernelStart = now();
+
+    // clang-format off
+  #pragma acc parallel loop                   \
+    present(                                  \
+      protein[:natpro], ligand[:natlig],      \
+      forcefield[:ntypes], poses_0[:nposes],  \
+      poses_1[:nposes], poses_2[:nposes],     \
+      poses_3[:nposes], poses_4[:nposes],     \
+      poses_5[:nposes], energies[:nposes])
+      // clang-format on
+      for (size_t group = 0; group < (nposes / PPWI); group++) {
+        fasten_main<PPWI>(group, ntypes, nposes, natlig, natpro,                //
+                          protein, ligand,                                      //
+                          poses_0, poses_1, poses_2, poses_3, poses_4, poses_5, //
+                          forcefield, energies);
       }
+      auto kernelEnd = now();
+      sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
+
+  auto deviceToHostStart = now();
+        
+  #pragma acc update                          \
+    host(energies[:nposes])
+        
+  auto deviceToHostEnd = now();
+  sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
+  
+  #pragma acc exit data                       \
+    delete(protein, ligand, forcefield,       \
+           poses_0, poses_1, poses_2,         \
+           poses_3, poses_4, poses_5,         \
+           energies)
+
     std::copy(energies, energies + p.nposes(), sample.energies.begin());
-    std::free(protein);
-    std::free(ligand);
-    std::free(forcefield);
-    std::free(energies);
-    for (auto &pose : poses)
-      std::free(pose);
 
     return sample;
   };
