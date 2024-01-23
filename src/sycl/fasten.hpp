@@ -233,6 +233,7 @@ public:
     queue.submit([&](sycl::handler &h) { h.copy(energies.get_access<R>(h), sample.energies.data()); });
     queue.wait_and_throw();
     auto deviceToHostEnd = now();
+        
     sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
 
     return sample;
