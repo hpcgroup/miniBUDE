@@ -198,9 +198,9 @@ public:
     auto device = devices[deviceIdx];
 
     Sample sample(PPWI, wgsize, p.nposes());
-
-    auto contextStart = now();
     sycl::queue queue(device);
+        
+    auto hostToDeviceStart = now();
     sycl::buffer<Atom> proteins(p.protein.data(), p.protein.size());
     sycl::buffer<Atom> ligands(p.ligand.data(), p.ligand.size());
     sycl::buffer<FFParams> forcefields(p.forcefield.data(), p.forcefield.size());
@@ -212,8 +212,8 @@ public:
     sycl::buffer<float> transforms_5(p.poses[5].data(), p.poses[5].size());
     sycl::buffer<float> energies(sample.energies.size());
     queue.wait_and_throw();
-    auto contextEnd = now();
-    sample.contextTime = {contextStart, contextEnd};
+    auto hostToDeviceEnd = now();
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
 
     for (size_t i = 0; i < p.iterations + p.warmupIterations; ++i) {
       auto kernelStart = now();
@@ -229,8 +229,11 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
+    auto deviceToHostStart = now();
     queue.submit([&](sycl::handler &h) { h.copy(energies.get_access<R>(h), sample.energies.data()); });
     queue.wait_and_throw();
+    auto deviceToHostEnd = now();
+    sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
 
     return sample;
   };
