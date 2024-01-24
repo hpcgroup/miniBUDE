@@ -4,6 +4,8 @@
 #include <string>
 
 #include "RAJA/RAJA.hpp"
+#include "umpire/Allocator.hpp"
+#include "umpire/ResourceManager.hpp"
 #include "camp/resource.hpp"
 
 #ifdef IMPL_CLS
@@ -233,23 +235,20 @@ public:
     std::copy(xs.begin(), xs.end(), data);
     return data;
   }
-
+    
   template <typename T> static T *allocate(const size_t size) {
-#ifndef RAJA_DEVICE_ACTIVE
-    return static_cast<T *>(std::malloc(sizeof(T) * size));
+    auto &rm = umpire::ResourceManager::getInstance();
+#ifndef RAJA_TARGET_GPU
+    auto alloc = rm.getAllocator("HOST");
 #else
-    T *ptr;
-    cudaMallocManaged((void **)&ptr, sizeof(T) * size, cudaMemAttachGlobal);
-    return ptr;
+    auto alloc = rm.getAllocator("UM");
 #endif
+    return static_cast<T *>(alloc.allocate(sizeof(T) * size));
   }
 
   template <typename T> static void deallocate(T *ptr) {
-#ifndef RAJA_DEVICE_ACTIVE
-    std::free(ptr);
-#else
-    cudaFree(ptr);
-#endif
+    auto &rm = umpire::ResourceManager::getInstance();
+    rm.getAllocator(ptr).deallocate(ptr);
   }
 
   static void synchronise() {
@@ -271,18 +270,18 @@ public:
   [[nodiscard]] std::string name() { return "raja"; };
 
   [[nodiscard]] std::vector<Device> enumerateDevices() override {
-    std::vector<Device> devices{{RAJA::ExecPlace::HOST, "RAJA Host device"}};
-#if defined(RAJA_DEVICE_ACTIVE)
+    std::vector<Device> devices{{(size_t) RAJA::ExecPlace::HOST, "RAJA Host device"}};
+#if defined(RAJA_TARGET_GPU)
   #if defined(RAJA_ENABLE_CUDA)
     const auto deviceName = "RAJA CUDA device";
   #endif
   #if defined(RAJA_ENABLE_HIP)
-    const auto deviceName = "Raja HIP device";
+    const auto deviceName = "RAJA HIP device";
   #endif
   #if defined(RAJA_ENABLE_SYCL)
-    const auto deviceName = "Raja SYCL device";
+    const auto deviceName = "RAJA SYCL device";
   #endif
-    devices.template emplace_back(RAJA::ExecPlace::DEVICE, deviceName);
+    devices.template emplace_back((size_t) RAJA::ExecPlace::DEVICE, deviceName);
 #endif
     return devices;
   };
@@ -290,7 +289,7 @@ public:
   [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device) const override {
 
     Sample sample(PPWI, wgsize, p.nposes());
-
+        
     auto contextStart = now();
 
     auto protein = allocate(p.protein);
