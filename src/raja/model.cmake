@@ -3,10 +3,6 @@ register_flag_optional(RAJA_BACK_END "Specify whether we target CPU/CUDA/HIP/SYC
 register_flag_optional(MANAGED_ALLOC "Use UVM (cudaMallocManaged) instead of the device-only allocation (cudaMalloc)"
         "OFF")
 
-register_flag_optional(SYNC_ALL_KERNELS
-        "Fully synchronise all kernels after launch, this also enables synchronous error checking with line and file name"
-        "OFF")
-
 macro(setup)
     if (POLICY CMP0104)
         cmake_policy(SET CMP0104 OLD)
@@ -28,6 +24,7 @@ macro(setup)
         set_source_files_properties(${IMPL_SOURCES} PROPERTIES LANGUAGE CUDA)
         register_definitions(RAJA_TARGET_GPU)
     elseif (${RAJA_BACK_END} STREQUAL "HIP")
+        # Set CMAKE_CXX_COMPILER to hipcc
         find_package(hip REQUIRED)
         register_definitions(RAJA_TARGET_GPU)
     elseif (${RAJA_BACK_END} STREQUAL "SYCL")
@@ -38,11 +35,6 @@ macro(setup)
     endif ()   
     
     if (MANAGED_ALLOC)
-        register_definitions(CLOVER_MANAGED_ALLOC)
+        register_definitions(BUDE_MANAGED_ALLOC)
     endif ()
-
-    if (SYNC_ALL_KERNELS)
-        register_definitions(CLOVER_SYNC_ALL_KERNELS)
-    endif ()
-
 endmacro()
