@@ -20,7 +20,7 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
 
   using launch_policy = RAJA::LaunchPolicy< //
 #if defined(RAJA_ENABLE_OPENMP)
-      RAJA:::omp_launch_t
+      RAJA::omp_launch_t
 #else
       RAJA::seq_launch_t
 #endif
