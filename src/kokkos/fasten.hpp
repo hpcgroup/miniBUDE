@@ -172,10 +172,9 @@ public:
   }
 
   template <typename T> static Kokkos::View<T *> mkView(const std::string &name, const std::vector<T> &xs) {
-    Kokkos::View<T *> view(Kokkos::ViewAllocateWithoutInitializing(name), xs.size());
-    auto mirror = Kokkos::create_mirror_view(view);
-    for (size_t i = 0; i < xs.size(); i++)
-      mirror[i] = xs[i];
+    Kokkos::View<const T *, Kokkos::LayoutLeft, Kokkos::HostSpace,
+      Kokkos::MemoryTraits<Kokkos::Unmanaged>> mirror (std::data(xs), std::size(xs));
+    Kokkos::View<T *> view (name, std::size(xs));
     Kokkos::deep_copy(view, mirror);
     return view;
   }
@@ -230,12 +229,13 @@ public:
 
       auto result_mirror = Kokkos::create_mirror_view(results);
       Kokkos::deep_copy(result_mirror, results);
-      for (size_t i = 0; i < results.size(); i++) {
-        sample.energies[i] = result_mirror[i];
-      }
 
       auto deviceToHostEnd = now();
       sample.deviceToHost = {deviceToHostStart, deviceToHostEnd}; 
+      
+      for (size_t i = 0; i < results.size(); i++) {
+        sample.energies[i] = result_mirror[i];
+      }
     }
 
     if (!Kokkos::is_finalized()) {
