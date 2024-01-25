@@ -21,12 +21,15 @@ macro(setup)
 
     cmake_policy(SET CMP0074 NEW) #see https://github.com/kokkos/kokkos/blob/master/BUILD.md
 
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_EXTENSIONS OFF)
+
     message(STATUS "Building using in-tree Kokkos source at `${KOKKOS_IN_TREE}`")
 
-    if (EXISTS "${KOKKOS_IN_TREE}")
+    if (KOKKOS_IN_TREE)
         add_subdirectory(${KOKKOS_IN_TREE} ${CMAKE_BINARY_DIR}/kokkos)
         register_link_library(Kokkos::kokkos)
-    elseif (EXISTS "${KOKKOS_IN_PACKAGE}")
+    elseif (KOKKOS_IN_PACKAGE)
         message(STATUS "Build using packaged Kokkos at `${KOKKOS_IN_PACKAGE}`")
         set (Kokkos_DIR "${KOKKOS_IN_PACKAGE}/lib64/cmake/Kokkos")
         find_package(Kokkos REQUIRED)
