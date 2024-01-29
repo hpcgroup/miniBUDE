@@ -230,9 +230,22 @@ public:
         });
   }
 
+  template <typename T> static void *registerAllocation(const std::vector<T> &xs) {
+    auto &rm = umpire::ResourceManager::getInstance();
+    auto host_alloc = rm.getAllocator("HOST");
+    auto strategy = host_alloc.getAllocationStrategy();
+    // Not allowed to create a record without casting away the const
+    auto host_data = const_cast<void*>(static_cast<const void*>(std::data(xs)));
+    umpire::util::AllocationRecord record{host_data, sizeof(T) * std::size(xs), strategy};
+    rm.registerAllocation(host_data, record);
+    return host_data;
+  }
+
   template <typename T> static T *allocate(const std::vector<T> &xs) {
-    auto data = allocate<T>(xs.size());
-    std::copy(xs.begin(), xs.end(), data);
+    auto &rm = umpire::ResourceManager::getInstance();
+    auto host_data = registerAllocation(xs);
+    auto data = allocate<T>(std::size(xs));
+    rm.copy(data, host_data);
     return data;
   }
     
@@ -241,7 +254,11 @@ public:
 #ifndef RAJA_TARGET_GPU
     auto alloc = rm.getAllocator("HOST");
 #else
+  #ifdef BUDE_MANAGED_ALLOC
     auto alloc = rm.getAllocator("UM");
+  #else
+    auto alloc = rm.getAllocator("DEVICE");
+  #endif
 #endif
     return static_cast<T *>(alloc.allocate(sizeof(T) * size));
   }
@@ -289,7 +306,8 @@ public:
   [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device) const override {
 
     Sample sample(PPWI, wgsize, p.nposes());
-        
+    auto &rm = umpire::ResourceManager::getInstance();
+
     auto contextStart = now();
 
     auto protein = allocate(p.protein);
@@ -305,6 +323,8 @@ public:
 
     synchronise();
 
+    auto host_energies = registerAllocation(sample.energies);
+
     auto contextEnd = now();
     sample.contextTime = {contextStart, contextEnd};
 
@@ -318,7 +338,7 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
-    std::copy(results, results + p.nposes(), sample.energies.begin());
+    rm.copy(host_energies, results);
 
     deallocate(protein);
     deallocate(ligand);
