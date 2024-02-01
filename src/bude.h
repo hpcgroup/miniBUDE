@@ -85,9 +85,10 @@ struct Sample {
   size_t ppwi, wgsize;
   std::vector<float> energies;
   std::vector<std::pair<TimePoint, TimePoint>> kernelTimes;
-  std::optional<std::pair<TimePoint, TimePoint>> contextTime;
+  std::optional<std::pair<TimePoint, TimePoint>> hostToDevice;
+  std::optional<std::pair<TimePoint, TimePoint>> deviceToHost;
   Sample(size_t ppwi, size_t wgsize, size_t nposes)
-      : ppwi(ppwi), wgsize(wgsize), energies(nposes), kernelTimes(), contextTime() {}
+      : ppwi(ppwi), wgsize(wgsize), energies(nposes), kernelTimes(), hostToDevice(), deviceToHost() {}
 };
 
 using Device = std::pair<size_t, std::string>;

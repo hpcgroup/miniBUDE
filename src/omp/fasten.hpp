@@ -181,56 +181,31 @@ public:
     const auto natlig = p.natlig();
     const auto natpro = p.natpro();
 
-    std::array<float *, 6> poses{};
-    auto protein = static_cast<Atom *>(std::malloc(sizeof(Atom) * natpro));
-    auto ligand = static_cast<Atom *>(std::malloc(sizeof(Atom) * natlig));
-    auto forcefield = static_cast<FFParams *>(std::malloc(sizeof(FFParams) * ntypes));
-    auto energies = static_cast<float *>(std::malloc(sizeof(float) * nposes));
+    auto poses = p.poses.data();  
+    auto protein = p.protein.data();
+    auto ligand = p.ligand.data();
+    auto forcefield = p.forcefield.data();
+    auto energies = static_cast<float *>(std::calloc(nposes, sizeof(float))); 
 
-    for (auto i = 0; i < 6; i++)
-      poses[i] = static_cast<float *>(std::malloc(sizeof(float) * nposes));
-
-#pragma omp parallel
-    {
-      for (auto i = 0; i < 6; i++) {
-#pragma omp for nowait
-        for (auto j = 0; j < nposes; j++)
-          poses[i][j] = p.poses[i][j];
-      }
-#pragma omp for nowait
-      for (auto i = 0; i < nposes; i++)
-        energies[i] = 0.f;
-
-#pragma omp for nowait
-      for (auto i = 0; i < natpro; i++)
-        protein[i] = p.protein[i];
-
-#pragma omp for nowait
-      for (auto i = 0; i < natlig; i++)
-        ligand[i] = p.ligand[i];
-
-#pragma omp for nowait
-      for (auto i = 0; i < ntypes; i++)
-        forcefield[i] = p.forcefield[i];
-    }
-    auto contextEnd = now();
-    sample.contextTime = {contextStart, contextEnd};
-
-    auto poses_0 = poses[0];
-    auto poses_1 = poses[1];
-    auto poses_2 = poses[2];
-    auto poses_3 = poses[3];
-    auto poses_4 = poses[4];
-    auto poses_5 = poses[5];
+    auto poses_0 = poses[0].data();
+    auto poses_1 = poses[1].data();
+    auto poses_2 = poses[2].data();
+    auto poses_3 = poses[3].data();
+    auto poses_4 = poses[4].data();
+    auto poses_5 = poses[5].data();   
 
 #ifdef OMP_TARGET // clang-format off
-  #pragma omp target data                                      \
-    map(from: energies[:nposes])                               \
+    auto hostToDeviceStart = now();
+  #pragma omp target enter data                                \
+    map(alloc: energies[:nposes])                              \
     map(to:                                                    \
       protein[:natpro], ligand[:natlig], forcefield[:ntypes],  \
       poses_0[:nposes], poses_1[:nposes], poses_2[:nposes],    \
       poses_3[:nposes], poses_4[:nposes], poses_5[:nposes]     \
     )
+        
+    auto hostToDeviceEnd = now();
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
 #endif // OMP_TARGET clang-format on
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
@@ -253,13 +228,19 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
+    auto deviceToHostStart = now();
+  #pragma omp target update from(energies[:nposes])
     std::copy(energies, energies + p.nposes(), sample.energies.begin());
-    std::free(protein);
-    std::free(ligand);
-    std::free(forcefield);
-    std::free(energies);
-    for (auto &pose : poses)
-      std::free(pose);
+
+    auto deviceToHostEnd = now();
+    sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
+
+  #pragma omp target exit data                                 \
+    map(release:                                               \
+      protein[:natpro], ligand[:natlig], forcefield[:ntypes],  \
+      poses_0[:nposes], poses_1[:nposes], poses_2[:nposes],    \
+      poses_3[:nposes], poses_4[:nposes], poses_5[:nposes],    \
+      energies[:nposes])
 
     return sample;
   };
