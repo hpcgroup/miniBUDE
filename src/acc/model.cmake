@@ -45,6 +45,11 @@ register_flag_optional(TARGET_PROCESSOR
 
 set(ACC_FLAGS_OFFLOAD_GNU -foffload=-lm)
 
+register_flag_optional(OFFLOAD_FLAGS
+   "OpenACC Offload Flags"
+   ""
+)
+
 macro(setup)
     find_package(OpenACC REQUIRED)
 
@@ -88,6 +93,12 @@ macro(setup)
         endif ()
 
     endif ()
+
+    if(NOT "${OFFLOAD_FLAGS}" STREQUAL "")
+        separate_arguments(OFFLOAD_FLAGS)
+        register_append_cxx_flags(ANY ${OFFLOAD_FLAGS})
+        register_append_link_flags(${OFFLOAD_FLAGS})
+    endif()
 
 endmacro()
 
