@@ -197,49 +197,43 @@ public:
     
     Sample sample(PPWI, wgsize, p.nposes());
 
-    {
-      auto hostToDeviceStart = now();
+    auto hostToDeviceStart = now();
 
-      auto protein = mkView("protein", p.protein);
-      auto ligand = mkView("ligand", p.ligand);
-      auto transforms_0 = mkView("transforms_0", p.poses[0]);
-      auto transforms_1 = mkView("transforms_1", p.poses[1]);
-      auto transforms_2 = mkView("transforms_2", p.poses[2]);
-      auto transforms_3 = mkView("transforms_3", p.poses[3]);
-      auto transforms_4 = mkView("transforms_4", p.poses[4]);
-      auto transforms_5 = mkView("transforms_5", p.poses[5]);
-      auto forcefield = mkView("forcefield", p.forcefield);
-      Kokkos::View<float *> results(Kokkos::ViewAllocateWithoutInitializing("results"), sample.energies.size());
+    auto protein = mkView("protein", p.protein);
+    auto ligand = mkView("ligand", p.ligand);
+    auto transforms_0 = mkView("transforms_0", p.poses[0]);
+    auto transforms_1 = mkView("transforms_1", p.poses[1]);
+    auto transforms_2 = mkView("transforms_2", p.poses[2]);
+    auto transforms_3 = mkView("transforms_3", p.poses[3]);
+    auto transforms_4 = mkView("transforms_4", p.poses[4]);
+    auto transforms_5 = mkView("transforms_5", p.poses[5]);
+    auto forcefield = mkView("forcefield", p.forcefield);
+    Kokkos::View<float *> results(Kokkos::ViewAllocateWithoutInitializing("results"), sample.energies.size());
+    Kokkos::fence();
+
+    auto hostToDeviceEnd = now();
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+
+    for (size_t i = 0; i < p.iterations + p.warmupIterations; ++i) {
+      auto kernelStart = now();
+      fasten_main(wgsize, p.ntypes(), p.nposes(), p.natlig(), p.natpro(), //
+                  protein, ligand, forcefield,                            //
+                  transforms_0, transforms_1, transforms_2, transforms_3, transforms_4, transforms_5, results);
       Kokkos::fence();
-
-      auto hostToDeviceEnd = now();
-      sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
-
-      for (size_t i = 0; i < p.iterations + p.warmupIterations; ++i) {
-        auto kernelStart = now();
-        fasten_main(wgsize, p.ntypes(), p.nposes(), p.natlig(), p.natpro(), //
-                    protein, ligand, forcefield,                            //
-                    transforms_0, transforms_1, transforms_2, transforms_3, transforms_4, transforms_5, results);
-        Kokkos::fence();
-        auto kernelEnd = now();
-        sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
-      }
-
-      auto deviceToHostStart = now();
-
-      auto result_mirror = Kokkos::create_mirror_view(results);
-      Kokkos::deep_copy(result_mirror, results);
-
-      auto deviceToHostEnd = now();
-      sample.deviceToHost = {deviceToHostStart, deviceToHostEnd}; 
-      
-      for (size_t i = 0; i < results.size(); i++) {
-        sample.energies[i] = result_mirror[i];
-      }
+      auto kernelEnd = now();
+      sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
-    if (!Kokkos::is_finalized()) {
-      Kokkos::finalize();
+    auto deviceToHostStart = now();
+
+    auto result_mirror = Kokkos::create_mirror_view(results);
+    Kokkos::deep_copy(result_mirror, results);
+
+    auto deviceToHostEnd = now();
+    sample.deviceToHost = {deviceToHostStart, deviceToHostEnd}; 
+
+    for (size_t i = 0; i < results.size(); i++) {
+      sample.energies[i] = result_mirror[i];
     }
 
     return sample;
