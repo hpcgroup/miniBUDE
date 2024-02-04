@@ -11,7 +11,7 @@ using namespace cl;
 #ifdef IMPL_CLS
   #error IMPL_CLS was already defined
 #endif
-#define IMPL_CLS SyclBude
+#define IMPL_CLS SyclACCBude
 
 template <size_t N> class bude_kernel_ndrange;
 
