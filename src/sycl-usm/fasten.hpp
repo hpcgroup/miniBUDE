@@ -185,7 +185,11 @@ public:
 
   
   template<typename T>[[nodiscard]] static T *allocate(size_t size, sycl::queue &queue) {
+#ifdef BUDE_MANAGED_ALLOC
+    T *data = sycl::malloc_shared<T>(size, queue);
+#else
     T *data = sycl::malloc_device<T>(size, queue);
+#endif
     return data;
   }
 
