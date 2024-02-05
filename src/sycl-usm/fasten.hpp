@@ -42,9 +42,6 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
       size_t ix = gid * lrange * PPWI + lid;
       ix = ix < nposes ? ix : nposes - PPWI;
 
-      sycl::local_ptr<FFParams> cake2 = local_forcefield.get_pointer();
-      sycl::global_ptr<FFParams> cake = std::remove_const_t<FFParams*>(forcefields);
-
       sycl::device_event event = item.async_work_group_copy(
         sycl::local_ptr<FFParams>(local_forcefield.get_pointer()),
         sycl::global_ptr<FFParams>(std::remove_const_t<FFParams*>(forcefields)),
