@@ -157,7 +157,7 @@ parseParams(const std::vector<std::string> &args) {
 
   // Defaults
   params.iterations = DEFAULT_ITERS;
-  params.warmupIterations = 2;
+  params.warmupIterations = DEFAULT_WARMUPS;
   params.deckDir = DATA_DIR;
   params.outRows = DEFAULT_ENERGY_ENTRIES;
 
@@ -212,6 +212,7 @@ parseParams(const std::vector<std::string> &args) {
     using namespace std::placeholders;
     const auto arg = args[i];
     if (read(i, arg, {"--iter", "-i"}, [&](auto &&s) { return bindInt(s, params.iterations, "iter"); })) continue;
+    if (read(i, arg, {"--warmups", "-w"}, [&](auto &&s) { return bindInt(s, params.warmupIterations, "iter"); })) continue;
     if (read(i, arg, {"--poses", "-n"}, [&](auto &&s) { bindInt(s, nposes, "poses"); })) continue;
     if (read(i, arg, {"--device", "-d"}, [&](auto &&s) { params.deviceSelector = s; })) continue;
     if (read(i, arg, {"--deck"}, [&](auto &&s) { params.deckDir = s; })) continue;
@@ -255,6 +256,8 @@ parseParams(const std::vector<std::string> &args) {
              "                       [optional] default=0\n"
           << "  -i --iter    I       Repeat kernel I times\n"
              "                       [optional] default=" << DEFAULT_ITERS << "\n"
+          << "  -w --warmups W       # of warmup iterations\n"
+             "                       [optional] default=" << DEFAULT_WARMUPS << "\n"
           << "  -n --poses   N       Compute energies for only N poses, use 0 for deck max\n"
              "                       [optional] default=0 \n"
           << "  -p --ppwi    PPWI    A CSV list of poses per work-item for the kernel, use `all` for everything\n"

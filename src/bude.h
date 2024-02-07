@@ -10,6 +10,7 @@
 
 #define DIFF_TOLERANCE_PCT 0.025f
 #define DEFAULT_ITERS 8
+#define DEFAULT_WARMUPS 2
 #define DEFAULT_ENERGY_ENTRIES 8
 
 #define DATA_DIR "../data/bm1"

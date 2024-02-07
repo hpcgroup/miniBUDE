@@ -219,7 +219,7 @@ public:
     auto hostToDeviceEnd = now();
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
 
-    for (size_t i = 0; i < p.iterations + p.warmupIterations; ++i) {
+    for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
       queue.submit([&](sycl::handler &h) {
         fasten_main(h, wgsize, p.ntypes(), p.nposes(), p.natlig(), p.natpro(),
