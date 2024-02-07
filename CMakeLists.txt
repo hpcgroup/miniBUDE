@@ -159,7 +159,8 @@ register_model(std-ranges STD_RANGES fasten.hpp) # TODO
 register_model(hip HIP fasten.hpp)
 register_model(cuda CUDA fasten.hpp)
 register_model(kokkos KOKKOS fasten.hpp)
-register_model(sycl SYCL fasten.hpp)
+register_model(sycl-acc SYCL_ACC fasten.hpp)
+register_model(sycl-usm SYCL_USM fasten.hpp)
 register_model(acc ACC fasten.hpp)
 # defining RAJA collides with the RAJA namespace so USE_RAJA
 register_model(raja USE_RAJA fasten.hpp)
