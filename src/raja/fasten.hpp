@@ -234,8 +234,8 @@ public:
     auto &rm = umpire::ResourceManager::getInstance();
     auto host_alloc = rm.getAllocator("HOST");
     auto strategy = host_alloc.getAllocationStrategy();
-    // Not allowed to create a record without casting away the const
-    auto host_data = const_cast<void*>(static_cast<const void*>(std::data(xs)));
+    // Not allowed to create a record without removing the const
+    auto host_data = std::remove_const_t<T>(std::data(xs))
     umpire::util::AllocationRecord record{host_data, sizeof(T) * std::size(xs), strategy};
     rm.registerAllocation(host_data, record);
     return host_data;
