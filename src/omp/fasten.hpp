@@ -185,7 +185,7 @@ public:
     auto protein = p.protein.data();
     auto ligand = p.ligand.data();
     auto forcefield = p.forcefield.data();
-    auto energies = static_cast<float *>(std::calloc(nposes, sizeof(float))); 
+    auto energies = sample.energies.data();
 
     auto poses_0 = poses[0].data();
     auto poses_1 = poses[1].data();
@@ -230,7 +230,6 @@ public:
 
     auto deviceToHostStart = now();
   #pragma omp target update from(energies[:nposes])
-    std::copy(energies, energies + p.nposes(), sample.energies.begin());
 
     auto deviceToHostEnd = now();
     sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};

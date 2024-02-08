@@ -167,7 +167,7 @@ public:
     auto protein = p.protein.data();
     auto ligand = p.ligand.data();
     auto forcefield = p.forcefield.data();
-    auto energies = static_cast<float *>(std::calloc(nposes, sizeof(float)));
+    auto energies = sample.energies.data();
 
     auto poses_0 = poses[0].data();
     auto poses_1 = poses[1].data();
@@ -227,8 +227,6 @@ public:
            poses_0, poses_1, poses_2,         \
            poses_3, poses_4, poses_5,         \
            energies)
-
-    std::copy(energies, energies + p.nposes(), sample.energies.begin());
 
     return sample;
   };
