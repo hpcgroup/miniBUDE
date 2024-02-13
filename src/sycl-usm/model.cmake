@@ -9,7 +9,7 @@ register_flag_required(SYCL_COMPILER
            ONEAPI-ICPX  - icpx as a standalone compiler
            ONEAPI-Clang - oneAPI's Clang driver (enabled via `source /opt/intel/oneapi/setvars.sh  --include-intel-llvm`)
            DPCPP        - dpc++ as a standalone compiler (https://github.com/intel/llvm)
-           HIPSYCL      - hipSYCL compiler (https://github.com/illuhad/hipSYCL)
+           HIPSYCL/ADAPTIVECPP      - hipSYCL compiler (https://github.com/illuhad/hipSYCL)
            COMPUTECPP   - ComputeCpp compiler (https://developer.codeplay.com/products/computecpp/ce/home)")
 
 register_flag_optional(SYCL_COMPILER_DIR
@@ -47,7 +47,7 @@ macro(setup)
         find_package(hipSYCL CONFIG REQUIRED)
         message(STATUS "ok")
 
-    elseif (${SYCL_COMPILER} STREQUAL "ACPP")
+    elseif (${SYCL_COMPILER} STREQUAL "ADAPTIVECPP")
         find_package(AdaptiveCpp CONFIG REQUIRED)
     elseif (${SYCL_COMPILER} STREQUAL "COMPUTECPP")
 
@@ -94,7 +94,7 @@ macro(setup_target NAME)
     if (
     (${SYCL_COMPILER} STREQUAL "COMPUTECPP") OR
     (${SYCL_COMPILER} STREQUAL "HIPSYCL") OR
-    (${SYCL_COMPILER} STREQUAL "ACPP"))
+    (${SYCL_COMPILER} STREQUAL "ADAPTIVECPP"))
     
         # so ComputeCpp and hipSYCL has this weird (and bad) CMake usage where they append their
         # own custom integration header flags AFTER the target has been specified
