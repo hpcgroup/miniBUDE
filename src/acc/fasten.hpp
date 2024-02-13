@@ -146,7 +146,7 @@ public:
     std::vector<Device> devices;
     acc_device_t device_type = acc_get_device_type();
     for (int i = 0; i < acc_get_num_devices(device_type); ++i) {
-      devices.template emplace_back(i, "OMP target device #" + std::to_string(i));
+      devices.template emplace_back(i, "ACC target device #" + std::to_string(i));
     }
     return devices;
   };
