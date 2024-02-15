@@ -197,7 +197,6 @@ public:
 #ifdef OMP_TARGET // clang-format off
     auto hostToDeviceStart = now();
   #pragma omp target enter data                                \
-    map(alloc: energies[:nposes])                              \
     map(to:                                                    \
       protein[:natpro], ligand[:natlig], forcefield[:ntypes],  \
       poses_0[:nposes], poses_1[:nposes], poses_2[:nposes],    \
@@ -206,6 +205,9 @@ public:
         
     auto hostToDeviceEnd = now();
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+
+  #pragma omp target enter data                                \
+    map(alloc: energies[:nposes])                              
 #endif // OMP_TARGET clang-format on
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();

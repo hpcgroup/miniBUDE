@@ -213,11 +213,13 @@ public:
     auto transforms_4 = allocate(p.poses[4], queue);
     auto transforms_5 = allocate(p.poses[5], queue);
     auto forcefields = allocate(p.forcefield, queue);
-    auto energies = allocate<float>(std::size(sample.energies), queue);
     queue.wait_and_throw();
     
     auto hostToDeviceEnd = now();
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+    
+    auto energies = allocate<float>(std::size(sample.energies), queue);
+    queue.wait_and_throw();
 
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();

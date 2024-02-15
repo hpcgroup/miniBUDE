@@ -225,12 +225,14 @@ public:
     auto transforms_4 = allocate(p.poses[4]);
     auto transforms_5 = allocate(p.poses[5]);
     auto forcefield = allocate(p.forcefield);
-    auto results = allocate<float>(sample.energies.size());
     checkError(hipDeviceSynchronize());
     auto hostToDeviceEnd = now();
 
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
 
+    auto results = allocate<float>(sample.energies.size());
+    checkError(hipDeviceSynchronize());
+    
     size_t global = std::ceil(double(p.nposes()) / PPWI);
     global = std::ceil(double(global) / double(wgsize));
     size_t local = wgsize;

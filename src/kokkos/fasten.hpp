@@ -208,11 +208,13 @@ public:
     auto transforms_4 = mkView("transforms_4", p.poses[4]);
     auto transforms_5 = mkView("transforms_5", p.poses[5]);
     auto forcefield = mkView("forcefield", p.forcefield);
-    Kokkos::View<float *> results(Kokkos::ViewAllocateWithoutInitializing("results"), sample.energies.size());
     Kokkos::fence();
 
     auto hostToDeviceEnd = now();
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+    
+    Kokkos::View<float *> results(Kokkos::ViewAllocateWithoutInitializing("results"), sample.energies.size());
+    Kokkos::fence();
 
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();

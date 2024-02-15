@@ -319,14 +319,16 @@ public:
     auto transforms_4 = allocate(p.poses[4]);
     auto transforms_5 = allocate(p.poses[5]);
     auto forcefield = allocate(p.forcefield);
-    auto results = allocate<float>(sample.energies.size());
 
     synchronise();
 
-    auto host_energies = registerAllocation(sample.energies);
-
     auto hostToDeviceEnd = now();
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+    
+    auto host_energies = registerAllocation(sample.energies);
+    auto results = allocate<float>(sample.energies.size());
+    
+    synchronise();
 
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();

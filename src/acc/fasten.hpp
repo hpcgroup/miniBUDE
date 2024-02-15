@@ -186,10 +186,12 @@ public:
       poses_1[:nposes], poses_2[:nposes],     \
       poses_3[:nposes], poses_4[:nposes],     \
       poses_5[:nposes])                       \
-    create(energies[:nposes])
 
     auto hostToDeviceEnd = now();
     sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+    
+  #pragma acc enter data                      \
+    create(energies[:nposes])
 
     // clang-format on
     for (size_t i = 0; i < p.totalIterations(); ++i) {
