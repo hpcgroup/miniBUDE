@@ -19,7 +19,7 @@ macro(setup)
         set(CMAKE_CUDA_STANDARD 17)
         set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
-        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -extended-lambda --expt-relaxed-constexpr --restrict --keep")
+        set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -extended-lambda --expt-relaxed-constexpr --restrict --keep")
 
         set_source_files_properties(${IMPL_SOURCES} PROPERTIES LANGUAGE CUDA)
         register_definitions(RAJA_TARGET_GPU)
