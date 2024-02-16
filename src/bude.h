@@ -62,6 +62,7 @@ struct Params {
   size_t maxPoses, iterations, warmupIterations, outRows;
   std::string deckDir, output, deviceSelector;
   bool csv;
+  std::string csv_filename;
 
   bool list;
 

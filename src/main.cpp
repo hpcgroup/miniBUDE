@@ -217,6 +217,7 @@ parseParams(const std::vector<std::string> &args) {
     if (read(i, arg, {"--device", "-d"}, [&](auto &&s) { params.deviceSelector = s; })) continue;
     if (read(i, arg, {"--deck"}, [&](auto &&s) { params.deckDir = s; })) continue;
     if (read(i, arg, {"--out", "-o"}, [&](auto &&s) { params.output = s; })) continue;
+    if (read(i, arg, {"--csv"}, [&](auto &&s) { params.csv = true; params.csv_filename = s; })) continue;
     if (read(i, arg, {"--rows", "-r"}, [&](auto &&s) { return bindInt(s, params.outRows, "rows"); })) continue;
     if (read(i, arg, {"--wgsize", "-w"}, [&](auto &&s) { bindInts(s, wgsizes, "wgsize"); })) continue;
     if (read(i, arg, {"--ppwi", "-p"}, [&](auto &&s) {
@@ -232,11 +233,6 @@ parseParams(const std::vector<std::string> &args) {
           }
         }))
       continue;
-
-    if (arg == "--csv") {
-      params.csv = true;
-      continue;
-    }
 
     if (arg == "list" || arg == "--list" || arg == "-l") {
       params.list = true;
@@ -270,7 +266,7 @@ parseParams(const std::vector<std::string> &args) {
              "                       [optional]\n"
           << "  -r --rows    N       Output first N row(s) of energy values as part of the on-screen result\n"
              "                       [optional] default=" << DEFAULT_ENERGY_ENTRIES << "\n"
-          << "     --csv             Output results in CSV format\n"
+          << "     --csv     PATH    Output results in CSV format\n"
              "                       [optional] default=false"
 
           << std::endl;
@@ -470,7 +466,8 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
 }
 
 void showCsv(const Params &p, const Result &r, bool header) {
-  if (header) std::cout << "ppwi,wgsize,sum_ms,avg_ms,min_ms,max_ms,stddev_ms,interactions/s,gflops/s,gfinst/s"//
+  std::fstream out(p.csv_filename, std::ios::out | std::ios::trunc);
+  if (header) out << "ppwi,wgsize,sum_ms,avg_ms,min_ms,max_ms,stddev_ms,interactions/s,gflops/s,gfinst/s"//
                         << ",host_to_device_ms,device_to_host_ms\n";
   
   auto hostToDeviceMs = r.sample.hostToDevice
@@ -480,12 +477,13 @@ void showCsv(const Params &p, const Result &r, bool header) {
                        ? std::to_string(elapsedMillis(r.sample.deviceToHost->first, r.sample.deviceToHost->second))
                        : "~";
     
-  std::cout.precision(3);
-  std::cout << std::fixed;
-  std::cout << r.sample.ppwi << "," << r.sample.wgsize                                                         //
+  out.precision(3);
+  out << std::fixed;
+  out << r.sample.ppwi << "," << r.sample.wgsize                                                         //
             << "," << r.ms.sum << "," << r.ms.mean << "," << r.ms.min << "," << r.ms.max << "," << r.ms.stdDev //
             << "," << (r.interactionsPerSec) << "," << r.gflops << "," << r.ginsts                             //
             << "," << hostToDeviceMs << "," << deviceToHostMs << std::endl;
+  out.close();
 }
 
 template <size_t... Ns>
