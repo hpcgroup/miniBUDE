@@ -10,6 +10,7 @@
 
 #define DIFF_TOLERANCE_PCT 0.025f
 #define DEFAULT_ITERS 8
+#define DEFAULT_WARMUPS 2
 #define DEFAULT_ENERGY_ENTRIES 8
 
 #define DATA_DIR "../data/bm1"
@@ -61,6 +62,7 @@ struct Params {
   size_t maxPoses, iterations, warmupIterations, outRows;
   std::string deckDir, output, deviceSelector;
   bool csv;
+  std::string csv_filename;
 
   bool list;
 
@@ -85,9 +87,10 @@ struct Sample {
   size_t ppwi, wgsize;
   std::vector<float> energies;
   std::vector<std::pair<TimePoint, TimePoint>> kernelTimes;
-  std::optional<std::pair<TimePoint, TimePoint>> contextTime;
+  std::optional<std::pair<TimePoint, TimePoint>> hostToDevice;
+  std::optional<std::pair<TimePoint, TimePoint>> deviceToHost;
   Sample(size_t ppwi, size_t wgsize, size_t nposes)
-      : ppwi(ppwi), wgsize(wgsize), energies(nposes), kernelTimes(), contextTime() {}
+      : ppwi(ppwi), wgsize(wgsize), energies(nposes), kernelTimes(), hostToDevice(), deviceToHost() {}
 };
 
 using Device = std::pair<size_t, std::string>;

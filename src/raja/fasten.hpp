@@ -308,7 +308,7 @@ public:
     Sample sample(PPWI, wgsize, p.nposes());
     auto &rm = umpire::ResourceManager::getInstance();
 
-    auto contextStart = now();
+    auto hostToDeviceStart = now();
 
     auto protein = allocate(p.protein);
     auto ligand = allocate(p.ligand);
@@ -319,16 +319,18 @@ public:
     auto transforms_4 = allocate(p.poses[4]);
     auto transforms_5 = allocate(p.poses[5]);
     auto forcefield = allocate(p.forcefield);
-    auto results = allocate<float>(sample.energies.size());
 
     synchronise();
 
+    auto hostToDeviceEnd = now();
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+    
     auto host_energies = registerAllocation(sample.energies);
+    auto results = allocate<float>(sample.energies.size());
+    
+    synchronise();
 
-    auto contextEnd = now();
-    sample.contextTime = {contextStart, contextEnd};
-
-    for (size_t i = 0; i < p.iterations + p.warmupIterations; ++i) {
+    for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
       fasten_main(device, wgsize, p.ntypes(), p.nposes(), p.natlig(), p.natpro(), //
                   protein, ligand, forcefield,                                    //
@@ -338,7 +340,11 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
+    auto deviceToHostStart = now();
     rm.copy(host_energies, results);
+
+    auto deviceToHostEnd = now();
+    sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
 
     deallocate(protein);
     deallocate(ligand);

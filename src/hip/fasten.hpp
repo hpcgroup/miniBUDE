@@ -215,7 +215,7 @@ public:
 
     Sample sample(PPWI, wgsize, p.nposes());
 
-    auto contextStart = now();
+    auto hostToDeviceStart = now();
     auto protein = allocate(p.protein);
     auto ligand = allocate(p.ligand);
     auto transforms_0 = allocate(p.poses[0]);
@@ -225,12 +225,14 @@ public:
     auto transforms_4 = allocate(p.poses[4]);
     auto transforms_5 = allocate(p.poses[5]);
     auto forcefield = allocate(p.forcefield);
+    checkError(hipDeviceSynchronize());
+    auto hostToDeviceEnd = now();
+
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+
     auto results = allocate<float>(sample.energies.size());
     checkError(hipDeviceSynchronize());
-    auto contextEnd = now();
-
-    sample.contextTime = {contextStart, contextEnd};
-
+    
     size_t global = std::ceil(double(p.nposes()) / PPWI);
     global = std::ceil(double(global) / double(wgsize));
     size_t local = wgsize;
@@ -247,8 +249,12 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
+    auto deviceToHostStart = now();
     checkError(
         hipMemcpy(sample.energies.data(), results, sample.energies.size() * sizeof(float), hipMemcpyDeviceToHost));
+    auto deviceToHostEnd = now();
+
+    sample.deviceToHost = {deviceToHostStart, deviceToHostEnd};
 
     free(protein);
     free(ligand);

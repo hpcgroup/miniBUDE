@@ -202,7 +202,8 @@ public:
     Sample sample(PPWI, wgsize, p.nposes());
     sycl::queue queue(device);
 
-    auto contextStart = now();
+    auto hostToDeviceStart = now();
+    
     auto proteins = allocate(p.protein, queue);
     auto ligands = allocate(p.ligand, queue);
     auto transforms_0 = allocate(p.poses[0], queue);
@@ -212,12 +213,15 @@ public:
     auto transforms_4 = allocate(p.poses[4], queue);
     auto transforms_5 = allocate(p.poses[5], queue);
     auto forcefields = allocate(p.forcefield, queue);
+    queue.wait_and_throw();
+    
+    auto hostToDeviceEnd = now();
+    sample.hostToDevice = {hostToDeviceStart, hostToDeviceEnd};
+    
     auto energies = allocate<float>(std::size(sample.energies), queue);
     queue.wait_and_throw();
-    auto contextEnd = now();
-    sample.contextTime = {contextStart, contextEnd};
 
-    for (size_t i = 0; i < p.iterations + p.warmupIterations; ++i) {
+    for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
       queue.submit([&](sycl::handler &h) {
         fasten_main(h, wgsize, p.ntypes(), p.nposes(), p.natlig(), p.natpro(),
@@ -231,8 +235,12 @@ public:
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
 
+    auto deviceToHostStart = now();
     queue.memcpy(std::data(sample.energies), energies, sizeof(float) * std::size(sample.energies));
     queue.wait_and_throw();
+
+    auto deviceToHostEnd = now();
+    sample.deviceToHost = {hostToDeviceStart, hostToDeviceEnd};
 
     return sample;
   };

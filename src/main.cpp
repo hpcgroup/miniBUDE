@@ -157,7 +157,7 @@ parseParams(const std::vector<std::string> &args) {
 
   // Defaults
   params.iterations = DEFAULT_ITERS;
-  params.warmupIterations = 2;
+  params.warmupIterations = DEFAULT_WARMUPS;
   params.deckDir = DATA_DIR;
   params.outRows = DEFAULT_ENERGY_ENTRIES;
 
@@ -212,10 +212,12 @@ parseParams(const std::vector<std::string> &args) {
     using namespace std::placeholders;
     const auto arg = args[i];
     if (read(i, arg, {"--iter", "-i"}, [&](auto &&s) { return bindInt(s, params.iterations, "iter"); })) continue;
+    if (read(i, arg, {"--warmups", "-w"}, [&](auto &&s) { return bindInt(s, params.warmupIterations, "iter"); })) continue;
     if (read(i, arg, {"--poses", "-n"}, [&](auto &&s) { bindInt(s, nposes, "poses"); })) continue;
     if (read(i, arg, {"--device", "-d"}, [&](auto &&s) { params.deviceSelector = s; })) continue;
     if (read(i, arg, {"--deck"}, [&](auto &&s) { params.deckDir = s; })) continue;
     if (read(i, arg, {"--out", "-o"}, [&](auto &&s) { params.output = s; })) continue;
+    if (read(i, arg, {"--csv"}, [&](auto &&s) { params.csv = true; params.csv_filename = s; })) continue;
     if (read(i, arg, {"--rows", "-r"}, [&](auto &&s) { return bindInt(s, params.outRows, "rows"); })) continue;
     if (read(i, arg, {"--wgsize", "-w"}, [&](auto &&s) { bindInts(s, wgsizes, "wgsize"); })) continue;
     if (read(i, arg, {"--ppwi", "-p"}, [&](auto &&s) {
@@ -231,11 +233,6 @@ parseParams(const std::vector<std::string> &args) {
           }
         }))
       continue;
-
-    if (arg == "--csv") {
-      params.csv = true;
-      continue;
-    }
 
     if (arg == "list" || arg == "--list" || arg == "-l") {
       params.list = true;
@@ -255,6 +252,8 @@ parseParams(const std::vector<std::string> &args) {
              "                       [optional] default=0\n"
           << "  -i --iter    I       Repeat kernel I times\n"
              "                       [optional] default=" << DEFAULT_ITERS << "\n"
+          << "  -w --warmups W       # of warmup iterations\n"
+             "                       [optional] default=" << DEFAULT_WARMUPS << "\n"
           << "  -n --poses   N       Compute energies for only N poses, use 0 for deck max\n"
              "                       [optional] default=0 \n"
           << "  -p --ppwi    PPWI    A CSV list of poses per work-item for the kernel, use `all` for everything\n"
@@ -267,7 +266,7 @@ parseParams(const std::vector<std::string> &args) {
              "                       [optional]\n"
           << "  -r --rows    N       Output first N row(s) of energy values as part of the on-screen result\n"
              "                       [optional] default=" << DEFAULT_ENERGY_ENTRIES << "\n"
-          << "     --csv             Output results in CSV format\n"
+          << "     --csv     PATH    Output results in CSV format\n"
              "                       [optional] default=false"
 
           << std::endl;
@@ -429,10 +428,12 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
   std::string prefix(indent, ' ');
   std::cout.precision(3);
 
-  auto contextMs = r.sample.contextTime
-                       ? std::to_string(elapsedMillis(r.sample.contextTime->first, r.sample.contextTime->second))
+  auto hostToDeviceMs = r.sample.hostToDevice
+                       ? std::to_string(elapsedMillis(r.sample.hostToDevice->first, r.sample.hostToDevice->second))
                        : "~";
-
+  auto deviceToHostMs = r.sample.deviceToHost
+                       ? std::to_string(elapsedMillis(r.sample.deviceToHost->first, r.sample.deviceToHost->second))
+                       : "~";
   std::vector<double> iterationTimesMs;
   std::transform(r.sample.kernelTimes.begin(), //
                  r.sample.kernelTimes.end(), std::back_inserter(iterationTimesMs),
@@ -446,7 +447,8 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
             << "ppwi: " << r.sample.ppwi << ", "
             << "wgsize: " << r.sample.wgsize << " }\n"
             << prefix << "   raw_iterations:      [" << mk_string(iterationTimesMs) << "]\n"
-            << prefix << "   context_ms:          " << contextMs << "\n"
+            << prefix << "   host_to_device_ms:          " << hostToDeviceMs << "\n"
+            << prefix << "   device_to_host_ms:          " << deviceToHostMs << "\n"
             << prefix << "   sum_ms:              " << r.ms.sum << "\n"
             << prefix << "   avg_ms:              " << r.ms.mean << "\n"
             << prefix << "   min_ms:              " << r.ms.min << "\n"
@@ -464,12 +466,24 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
 }
 
 void showCsv(const Params &p, const Result &r, bool header) {
-  if (header) std::cout << "ppwi,wgsize,sum_ms,avg_ms,min_ms,max_ms,stddev_ms,interactions/s,gflops/s,gfinst/s\n";
-  std::cout.precision(3);
-  std::cout << std::fixed;
-  std::cout << r.sample.ppwi << "," << r.sample.wgsize                                                         //
+  std::fstream out(p.csv_filename, std::ios::out | std::ios::trunc);
+  if (header) out << "ppwi,wgsize,sum_ms,avg_ms,min_ms,max_ms,stddev_ms,interactions/s,gflops/s,gfinst/s"//
+                        << ",host_to_device_ms,device_to_host_ms\n";
+  
+  auto hostToDeviceMs = r.sample.hostToDevice
+                       ? std::to_string(elapsedMillis(r.sample.hostToDevice->first, r.sample.hostToDevice->second))
+                       : "~";
+  auto deviceToHostMs = r.sample.deviceToHost
+                       ? std::to_string(elapsedMillis(r.sample.deviceToHost->first, r.sample.deviceToHost->second))
+                       : "~";
+    
+  out.precision(3);
+  out << std::fixed;
+  out << r.sample.ppwi << "," << r.sample.wgsize                                                         //
             << "," << r.ms.sum << "," << r.ms.mean << "," << r.ms.min << "," << r.ms.max << "," << r.ms.stdDev //
-            << "," << (r.interactionsPerSec) << "," << r.gflops << "," << r.ginsts << std::endl;
+            << "," << (r.interactionsPerSec) << "," << r.gflops << "," << r.ginsts                             //
+            << "," << hostToDeviceMs << "," << deviceToHostMs << std::endl;
+  out.close();
 }
 
 template <size_t... Ns>

@@ -1,4 +1,3 @@
-
 register_flag_optional(CMAKE_CXX_COMPILER
         "Any CXX compiler that is supported by CMake detection, this is used for host compilation when required by the SYCL compiler"
         "c++")
@@ -60,18 +59,12 @@ macro(setup)
         set(COMPUTECPP_USER_FLAGS -O3 -no-serial-memop)
 
     elseif (${SYCL_COMPILER} STREQUAL "DPCPP")
-        set(CMAKE_CXX_COMPILER ${SYCL_COMPILER_DIR}/bin/clang++)
-        include_directories(${SYCL_COMPILER_DIR}/include/sycl)
         register_append_cxx_flags(ANY -fsycl)
         register_append_link_flags(-fsycl)
     elseif (${SYCL_COMPILER} STREQUAL "ONEAPI-ICPX")
-        set(CMAKE_CXX_COMPILER icpx)
-        set(CMAKE_C_COMPILER icx)
         register_append_cxx_flags(ANY -fsycl)
         register_append_link_flags(-fsycl)
     elseif (${SYCL_COMPILER} STREQUAL "ONEAPI-Clang")
-        set(CMAKE_CXX_COMPILER clang++)
-        set(CMAKE_C_COMPILER clang)
         register_append_cxx_flags(ANY -fsycl)
         register_append_link_flags(-fsycl)
     else ()
