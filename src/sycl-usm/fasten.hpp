@@ -42,10 +42,10 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
       size_t ix = gid * lrange * PPWI + lid;
       ix = ix < nposes ? ix : nposes - PPWI;
 
-      sycl::device_event event = item.async_work_group_copy(
-        sycl::local_ptr<FFParams>(local_forcefield.get_pointer()),
-        sycl::global_ptr<FFParams>(std::remove_const_t<FFParams*>(forcefields)),
-        ntypes);
+      sycl::device_event event = item.async_work_group_copy<float>(
+          sycl::local_ptr<float>(sycl::local_ptr<void>(local_forcefield.get_pointer())),
+          sycl::global_ptr<float>(sycl::global_ptr<void>(std::remove_const_t<FFParams*>(forcefields))),
+          ntypes * sizeof(FFParams) / sizeof(float));
 
       const size_t lsz = lrange;
       for (size_t i = 0; i < PPWI; i++) {
