@@ -31,8 +31,12 @@ public:
     // blockDim  = team_size   = get_local_range
     // threadIdx = team_rank   = get_local_id
 
+    using ScratchPadView = Kokkos::View<FFParams *,
+                       Kokkos::DefaultExecutionSpace::scratch_memory_space>;
+    size_t bytes = ScratchPadView::shmem_size(ntypes * sizeof(FFParams));
+
     Kokkos::TeamPolicy<> policy((int(global)), (int(wgsize)));
-    policy.set_scratch_size(0, Kokkos::PerTeam(int(ntypes * sizeof(FFParams))));
+    policy = policy.set_scratch_size(0, Kokkos::PerTeam(bytes));
 
     Kokkos::parallel_for(
         policy, KOKKOS_LAMBDA(const Kokkos::TeamPolicy<>::member_type group) {
@@ -46,15 +50,12 @@ public:
           size_t ix = gid * lrange * PPWI + lid;
           ix = ix < nposes ? ix : nposes - PPWI;
 
-          Kokkos::View<FFParams *,                                          //
-                       Kokkos::DefaultExecutionSpace::scratch_memory_space, //
-                       Kokkos::MemoryTraits<Kokkos::Unmanaged>>             //
-              local_forcefield(group.team_scratch(0), group.team_size());
+          ScratchPadView local_forcefield(group.team_scratch(0), group.team_size());
 
           // TODO async copy
           Kokkos::parallel_for(Kokkos::ThreadVectorRange(group, ntypes),
                                [&](const int i) { local_forcefield[i] = forcefields[i]; });
-
+          
           // Compute transformation matrix to private memory
           const size_t lsz = lrange;
           for (size_t i = 0; i < PPWI; i++) {
