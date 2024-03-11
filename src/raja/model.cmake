@@ -22,10 +22,19 @@ macro(setup)
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -extended-lambda --expt-relaxed-constexpr --restrict --keep")
 
         set_source_files_properties(${IMPL_SOURCES} PROPERTIES LANGUAGE CUDA)
+
         register_definitions(RAJA_TARGET_GPU)
     elseif (${RAJA_BACK_END} STREQUAL "HIP")
         # Set CMAKE_CXX_COMPILER to hipcc
         find_package(hip REQUIRED)
+        register_definitions(RAJA_TARGET_GPU)
+
+        enable_language(HIP)
+        set(CMAKE_HIP_STANDARD 17)
+        set(CMAKE_HIP_SEPARABLE_COMPILATION ON)
+
+        set_source_files_properties(${IMPL_SOURCES} PROPERTIES LANGUAGE HIP)
+
         register_definitions(RAJA_TARGET_GPU)
     elseif (${RAJA_BACK_END} STREQUAL "SYCL")
         register_definitions(RAJA_TARGET_GPU)
