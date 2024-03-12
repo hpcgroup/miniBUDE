@@ -15,7 +15,7 @@ energies.dat
 .vscode
 
 spack*
-build/
+build*
 cmake-build-*/
 .idea/
 .directory
