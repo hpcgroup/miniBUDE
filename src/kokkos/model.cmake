@@ -22,7 +22,6 @@ macro(setup)
         enable_language(CUDA)
 
         set(CMAKE_CUDA_STANDARD 17)
-        set(CMAKE_CUDA_SEPARABLE_COMPILATION ON)
 
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math")
 
@@ -32,7 +31,6 @@ macro(setup)
 
         enable_language(HIP)
         set(CMAKE_HIP_STANDARD 17)
-        set(CMAKE_HIP_SEPARABLE_COMPILATION ON)
 
         set_source_files_properties(${SOURCES} PROPERTIES LANGUAGE HIP)
     endif ()
