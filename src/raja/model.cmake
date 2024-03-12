@@ -17,6 +17,7 @@ macro(setup)
     if (${RAJA_BACK_END} STREQUAL "CUDA")
         enable_language(CUDA)
         set(CMAKE_CUDA_STANDARD 17)
+        set(CMAKE_CUDA_RESOLVE_DEVICE_SYMBOLS ON)
 
         set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} -use_fast_math -extended-lambda --expt-relaxed-constexpr --restrict --keep")
 
