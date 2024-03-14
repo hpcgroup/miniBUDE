@@ -51,48 +51,11 @@ register_flag_optional(OFFLOAD_FLAGS
 set(ACC_FLAGS_OFFLOAD_GNU -foffload=-lm)
 
 macro(setup)
-    find_package(OpenACC REQUIRED)
+    find_package(OpenACC)
 
-    if (${CMAKE_VERSION} VERSION_LESS "3.16.0")
-        # CMake didn't really implement ACC as a target before 3.16, so we append them manually
-        separate_arguments(OpenACC_CXX_FLAGS)
-        register_append_cxx_flags(ANY ${OpenACC_CXX_FLAGS})
-        register_append_link_flags(${OpenACC_CXX_FLAGS})
-    else ()
+    if(OpenACC_CXX_FOUND)
         register_link_library(OpenACC::OpenACC_CXX)
-    endif ()
-
-    string(TOUPPER ${CMAKE_CXX_COMPILER_ID} COMPILER)
-
-    register_append_compiler_and_arch_specific_cxx_flags(
-            ACC_FLAGS_OFFLOAD
-            ${COMPILER}
-            ANY
-    )
-
-    register_append_compiler_and_arch_specific_link_flags(
-            ACC_FLAGS_OFFLOAD
-            ${COMPILER}
-            ANY
-    )
-
-    register_definitions(restrict=__restrict)
-    # XXX NVHPC is really new so older Cmake thinks it's PGI, which is true
-    if ((CMAKE_CXX_COMPILER_ID STREQUAL PGI) OR (CMAKE_CXX_COMPILER_ID STREQUAL NVHPC))
-
-        if (TARGET_DEVICE)
-            register_append_cxx_flags(ANY -target=${TARGET_DEVICE})
-        endif ()
-
-        if (CUDA_ARCH)
-            register_append_cxx_flags(ANY -gpu=${CUDA_ARCH})
-        endif ()
-
-        if (TARGET_PROCESSOR)
-            register_append_cxx_flags(ANY -tp=${TARGET_PROCESSOR})
-        endif ()
-
-    endif ()
+    endif()
 
     separate_arguments(OFFLOAD_FLAGS)
     register_append_cxx_flags(ANY ${OFFLOAD_FLAGS})

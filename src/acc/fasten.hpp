@@ -13,7 +13,9 @@
 #define IMPL_CLS AccBude
 
 // XXX if we make this function part of the templated AccBude class, GCC segfaults at link time
+#if defined(__GNUG__) && !defined(__clang__)
 #pragma acc routine
+#endif
 template <size_t PPWI>
 static void fasten_main(size_t group, size_t ntypes, size_t nposes, size_t natlig, size_t natpro,        //
                         const Atom *protein, const Atom *ligand,                                         //
