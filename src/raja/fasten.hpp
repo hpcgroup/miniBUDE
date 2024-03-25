@@ -91,9 +91,6 @@ public:
         [=] RAJA_HOST_DEVICE(RAJA::LaunchContext ctx) {                    //
           RAJA::loop<teams_x>(ctx, RAJA::RangeSegment(0, global), [&](int gid) {
             FFParams *local_forcefield = ctx.getSharedMemory<FFParams>(ntypes);
-            if (ix < ntypes) {
-              local_forcefield[ix] = forcefields[ix];
-            }
 
             float etot[PPWI];
             float transform[3][4][PPWI];
@@ -101,6 +98,10 @@ public:
             RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
               size_t ix = gid * local * PPWI + lid;
               ix = ix < nposes ? ix : nposes - PPWI;
+
+              if (ix < ntypes) {
+                local_forcefield[ix] = forcefields[ix];
+              }
 
               // Compute transformation matrix to private memory
               const size_t lsz = local;
@@ -129,6 +130,7 @@ public:
 
                 etot[i] = ZERO;
               }
+            });
 
             ctx.teamSync();
 
