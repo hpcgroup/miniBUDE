@@ -11,7 +11,7 @@
 #define IMPL_CLS HipBude
 
 template <size_t PPWI>
-static __global__ void fasten_main(int natlig, int natpro,
+static __global__ void fasten_main(int ntypes, int natlig, int natpro,
                                    const Atom *protein_molecule, //
                                    const Atom *ligand_molecule,  //
                                    const float *transforms_0, const float *transforms_1, const float *transforms_2,
@@ -25,7 +25,7 @@ static __global__ void fasten_main(int natlig, int natpro,
   ix = ix < numTransforms ? ix : numTransforms - PPWI;
 
   extern __shared__ FFParams forcefield[];
-  if (ix < num_atom_types) {
+  if (ix < ntypes) {
     forcefield[ix] = global_forcefield[ix];
   }
 
@@ -235,7 +235,7 @@ public:
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
       hipLaunchKernelGGL(HIP_KERNEL_NAME(fasten_main<PPWI>), dim3(global), dim3(local), shared, 0,           //
-                         p.natlig(), p.natpro(), protein, ligand,                                            //
+                         p.ntypes(), p.natlig(), p.natpro(), protein, ligand,                                            //
                          transforms_0, transforms_1, transforms_2, transforms_3, transforms_4, transforms_5, //
                          results, forcefield, p.nposes());
       checkError(hipDeviceSynchronize());
