@@ -83,17 +83,18 @@ public:
     global = int(std::ceil(double(global) / double(wgsize)));
     size_t local = int(wgsize);
 
+    size_t dynamic_shared_mem_size = ntypes * sizeof(FFParams);
+
     RAJA::launch<launch_policy>(                                           //
         static_cast<RAJA::ExecPlace>(device),                              //
-        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local)), //
+        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local), dynamic_shared_mem_size), //
         [=] RAJA_HOST_DEVICE(RAJA::LaunchContext ctx) {                    //
           RAJA::loop<teams_x>(ctx, RAJA::RangeSegment(0, global), [&](int gid) {
-#ifdef USE_LOCAL_ARRAY
-  #error RAJA does not appear to support dynamically allocated LocalArray w/ the shared memory policy
-            RAJA_TEAM_SHARED FFParams *local_forcefield;
-#else
-            const FFParams *local_forcefield;
-#endif
+            FFParams *local_forcefield = ctx.getSharedMemory<FFParams>(ntypes);
+            if (ix < ntypes) {
+              local_forcefield[ix] = forcefields[ix];
+            }
+
             float etot[PPWI];
             float transform[3][4][PPWI];
 
@@ -129,15 +130,6 @@ public:
                 etot[i] = ZERO;
               }
 
-#ifdef USE_LOCAL_ARRAY
-              if (ix < ntypes) {
-                local_forcefield[ix] = forcefields[ix];
-              }
-#else
-              local_forcefield = forcefields;
-#endif
-            });
-                                
             ctx.teamSync();
 
             RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
