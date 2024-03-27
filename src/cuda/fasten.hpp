@@ -18,7 +18,7 @@ static __global__ void version(int *value) {
 }
 
 template <size_t PPWI>
-static __global__ void fasten_main(int natlig, int natpro,
+static __global__ void fasten_main(int ntypes, int natlig, int natpro,
                                    const Atom *protein_molecule, //
                                    const Atom *ligand_molecule,  //
                                    const float *transforms_0, const float *transforms_1, const float *transforms_2,
@@ -31,14 +31,10 @@ static __global__ void fasten_main(int natlig, int natpro,
   // A return would disable use of barriers, so not using return is better
   ix = ix < numTransforms ? ix : numTransforms - PPWI;
 
-#ifdef USE_SHARED
   extern __shared__ FFParams forcefield[];
-  if (ix < num_atom_types) {
+  if (ix < ntypes) {
     forcefield[ix] = global_forcefield[ix];
   }
-#else
-  const FFParams *forcefield = global_forcefield;
-#endif
 
   // Compute transformation matrix to private memory
   float etot[PPWI];
@@ -70,9 +66,7 @@ static __global__ void fasten_main(int natlig, int natpro,
     etot[i] = ZERO;
   }
 
-#ifdef USE_SHARED
   __syncthreads();
-#endif
 
   // Loop over ligand atoms
   int il = 0;
@@ -279,7 +273,7 @@ public:
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
       fasten_main<PPWI><<<global, local, shared>>>(                                           //
-          p.natlig(), p.natpro(), protein, ligand,                                            //
+          p.ntypes(), p.natlig(), p.natpro(), protein, ligand,                                            //
           transforms_0, transforms_1, transforms_2, transforms_3, transforms_4, transforms_5, //
           results, forcefield, p.nposes());
       checkError(cudaDeviceSynchronize());

@@ -224,8 +224,9 @@ public:
                     poses_0, poses_1, poses_2, poses_3, poses_4, poses_5, //
                     forcefield, energies);
       }
-      #pragma omp target update from(energies[:1])
-      discard = energies[0];
+      #if defined(OMP_TARGET) && defined(_CRAYC)
+      #pragma omp target update from(energies[0:0])
+      #endif
       auto kernelEnd = now();
       sample.kernelTimes.emplace_back(kernelStart, kernelEnd);
     }
