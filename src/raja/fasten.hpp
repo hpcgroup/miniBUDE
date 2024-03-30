@@ -2,6 +2,7 @@
 
 #include "../bude.h"
 #include <string>
+#include <cstdio>
 
 #include "RAJA/RAJA.hpp"
 #include "umpire/Allocator.hpp"
@@ -84,6 +85,8 @@ public:
     size_t local = int(wgsize);
 
     size_t dynamic_shared_mem_size = ntypes * sizeof(FFParams);
+    printf("dynamic_shared_mem_size = %d bytes per block\n",
+           dynamic_shared_mem_size);
 
     RAJA::launch<launch_policy>(                                           //
         static_cast<RAJA::ExecPlace>(device),                              //
@@ -220,6 +223,7 @@ public:
                 }
               }
             });
+            ctx.releaseSharedMemory();
           });
         });
   }
