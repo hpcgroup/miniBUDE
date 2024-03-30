@@ -2,7 +2,6 @@
 
 #include "../bude.h"
 #include <string>
-#include <cstdio>
 
 #include "RAJA/RAJA.hpp"
 #include "umpire/Allocator.hpp"
@@ -85,12 +84,10 @@ public:
     size_t local = int(wgsize);
 
     size_t dynamic_shared_mem_size = ntypes * sizeof(FFParams);
-    printf("dynamic_shared_mem_size = %d bytes per block\n",
-           dynamic_shared_mem_size);
 
     RAJA::launch<launch_policy>(                                           //
         static_cast<RAJA::ExecPlace>(device),                              //
-        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local), dynamic_shared_mem_size), //
+        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local), ntypes*sizeof(FFParams)), //
         [=] RAJA_HOST_DEVICE(RAJA::LaunchContext ctx) {                    //
           RAJA::loop<teams_x>(ctx, RAJA::RangeSegment(0, global), [&](int gid) {
             FFParams *local_forcefield = ctx.getSharedMemory<FFParams>(ntypes);
@@ -98,13 +95,15 @@ public:
             float etot[PPWI];
             float transform[3][4][PPWI];
 
+            RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, ntypes), [&] (int n) {
+              if (n < ntypes) {
+                local_forcefield[n] = forcefields[n];
+              }
+            });
+
             RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
               size_t ix = gid * local * PPWI + lid;
               ix = ix < nposes ? ix : nposes - PPWI;
-
-              if (ix < ntypes) {
-                local_forcefield[ix] = forcefields[ix];
-              }
 
               // Compute transformation matrix to private memory
               const size_t lsz = local;
