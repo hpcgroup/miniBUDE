@@ -87,7 +87,7 @@ public:
 
     RAJA::launch<launch_policy>(                                           //
         static_cast<RAJA::ExecPlace>(device),                              //
-        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local), ntypes*sizeof(FFParams)), //
+        RAJA::LaunchParams(RAJA::Teams(global), RAJA::Threads(local), dynamic_shared_mem_size), //
         [=] RAJA_HOST_DEVICE(RAJA::LaunchContext ctx) {                    //
           RAJA::loop<teams_x>(ctx, RAJA::RangeSegment(0, global), [&](int gid) {
             FFParams *local_forcefield = ctx.getSharedMemory<FFParams>(ntypes);
