@@ -213,8 +213,8 @@ public:
       auto kernelStart = now();
 
 #ifdef OMP_TARGET // clang-format off
-  #pragma omp target teams num_teams(wgsize)
-  #pragma omp distribute parallel for
+  #pragma omp target teams
+  #pragma omp distribute parallel for num_threads(wgsize)
 #else
   #pragma omp parallel for // note: orphaned 'omp teams' directives are prohibited
 #endif // OMP_TARGET clang-format on
