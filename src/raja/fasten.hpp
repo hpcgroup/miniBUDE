@@ -95,13 +95,15 @@ public:
             float etot[PPWI];
             float transform[3][4][PPWI];
 
+            RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, ntypes), [&] (int n) {
+              if (n < ntypes) {
+                local_forcefield[n] = forcefields[n];
+              }
+            });
+
             RAJA::loop<threads_x>(ctx, RAJA::RangeSegment(0, local), [&](int lid) {
               size_t ix = gid * local * PPWI + lid;
               ix = ix < nposes ? ix : nposes - PPWI;
-
-              if (ix < ntypes) {
-                local_forcefield[ix] = forcefields[ix];
-              }
 
               // Compute transformation matrix to private memory
               const size_t lsz = local;
@@ -220,6 +222,7 @@ public:
                 }
               }
             });
+            ctx.releaseSharedMemory();
           });
         });
   }
