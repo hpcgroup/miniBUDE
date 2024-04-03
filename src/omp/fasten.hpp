@@ -26,7 +26,7 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
     float transform[3][4][PPWI];
     float etot[PPWI];
 
-#pragma omp simd
+#pragma unroll(PPWI)
     for (int l = 0; l < PPWI; l++) {
       int ix = group * PPWI + l;
 
@@ -65,7 +65,6 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
       // Transform ligand atom
       float lpos_x[PPWI], lpos_y[PPWI], lpos_z[PPWI];
 
-#pragma omp simd
       for (int l = 0; l < PPWI; l++) {
         lpos_x[l] = transform[0][3][l] + l_atom.x * transform[0][0][l] + l_atom.y * transform[0][1][l] +
                     l_atom.z * transform[0][2][l];
@@ -98,7 +97,7 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
         const float chrg_init = l_params.elsc * p_params.elsc;
         const float dslv_init = p_hphb + l_hphb;
 
-#pragma omp simd
+#pragma unroll(PPWI)
         for (int l = 0; l < PPWI; l++) {
           // Calculate distance between atoms
           const float x = lpos_x[l] - p_atom.x;
@@ -129,8 +128,9 @@ template <size_t PPWI> class IMPL_CLS final : public Bude<PPWI> {
       }
     }
 
+    //
     // Write result
-#pragma omp simd
+#pragma unroll(PPWI)
     for (int l = 0; l < PPWI; l++) {
       energies[group * PPWI + l] = etot[l] * HALF;
     }
@@ -213,8 +213,7 @@ public:
       auto kernelStart = now();
 
 #ifdef OMP_TARGET // clang-format off
-  #pragma omp target teams
-  #pragma omp distribute parallel for num_threads(wgsize)
+  #pragma omp target teams distribute parallel for simd num_threads(wgsize)
 #else
   #pragma omp parallel for // note: orphaned 'omp teams' directives are prohibited
 #endif // OMP_TARGET clang-format on
