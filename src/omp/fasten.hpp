@@ -236,7 +236,13 @@ public:
       auto kernelStart = now();
 
       //int global = std::ceil(double(std::ceil(double(nposes) / PPWI)) / double(wgsize));
-      int global = gridsize;
+      int global;
+      if (gridsize) {
+        global = gridsize;
+      } else {
+        global = std::ceil(double(p.nposes()) / PPWI);
+        global = std::ceil(double(global) / double(wgsize));
+      }
       int local = wgsize;
 #ifdef OMP_TARGET // clang-format off
       //#pragma omp target teams num_teams(wgsize)

@@ -148,7 +148,7 @@ template <typename T> std::vector<T> readNStruct(const std::string &path) {
   return xs;
 }
 
-[[nodiscard]] std::tuple<Params, std::vector<size_t>, std::vector<size_t>>
+[[nodiscard]] std::tuple<Params, std::vector<size_t>, std::vector<size_t>, std::vector<size_t>>
 parseParams(const std::vector<std::string> &args) {
 
   Params params = {};
@@ -283,7 +283,7 @@ parseParams(const std::vector<std::string> &args) {
 
   if (ppwis.empty()) ppwis = {PPWIs[0]};
   if (wgsizes.empty()) wgsizes = {64};
-  if (gridsizes.empty()) gridsizes = {1024};
+  if (gridsizes.empty()) gridsizes = {0};
 
   if (params.list) {
     // Don't read any decks if we're just listing devices
@@ -519,23 +519,24 @@ bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<
         for (auto &wgsize : wgsizes) {
           for (auto &gridsize : gridsizes) {
 
-            /*
-            if (p.nposes() < ppwi * wgsize) {
-              std::cout << " # WARNING: pose count " << p.nposes() << " <= (" << wgsize << " (wgsize) * " << ppwi
-                        << " (ppwi)), skipping" << std::endl;
-              continue;
-            }
-            if (p.nposes() % (ppwi * wgsize) != 0) {
+            if (!gridsize) {
+              if (p.nposes() < ppwi * wgsize) {
+                std::cout << " # WARNING: pose count " << p.nposes() << " <= (" << wgsize << " (wgsize) * " << ppwi
+                          << " (ppwi)), skipping" << std::endl;
+                continue;
+              }
+              if (p.nposes() % (ppwi * wgsize) != 0) {
 
-              std::cout << " # WARNING: pose count " << p.nposes() << " % (" << wgsize << " (wgsize) * " << ppwi
-                        << " (ppwi)) != 0, skipping" << std::endl;
-              continue;
-            }
-            */
-            if (p.nposes() != (ppwi * wgsize) * gridsize) {
-              std::cout << " # WARNING: pose count " << p.nposes() << " != " << wgsize << " (wgsize) * " << ppwi
-                        << " (ppwi) * " << gridsize << " (gridsize)" << std::endl;
-              continue;
+                std::cout << " # WARNING: pose count " << p.nposes() << " % (" << wgsize << " (wgsize) * " << ppwi
+                          << " (ppwi)) != 0, skipping" << std::endl;
+                continue;
+              }
+            } else {
+              if (p.nposes() != (ppwi * wgsize) * gridsize) {
+                std::cout << " # WARNING: pose count " << p.nposes() << " != " << wgsize << " (wgsize) * " << ppwi
+                          << " (ppwi) * " << gridsize << " (gridsize)" << std::endl;
+                continue;
+              }
             }
 
             auto result = evaluate(p, kernel[ppwi](wgsize, size_t(dev.first), gridsize), true);

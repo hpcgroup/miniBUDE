@@ -269,9 +269,16 @@ public:
 
     sample.contextTime = {contextStart, contextEnd};
 
+
     //size_t global = std::ceil(double(p.nposes()) / PPWI);
     //global = std::ceil(double(global) / double(wgsize));
-    size_t global = gridsize;
+    size_t global;
+    if (gridsize) {
+      global = gridsize;
+    } else {
+      global = std::ceil(double(p.nposes()) / PPWI);
+      global = std::ceil(double(global) / double(wgsize));
+    }
     size_t local = wgsize;
     size_t shared = p.ntypes() * sizeof(FFParams);
 

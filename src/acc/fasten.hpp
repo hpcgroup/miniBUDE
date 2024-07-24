@@ -205,7 +205,13 @@ public:
         auto kernelStart = now();
 
         //int global = std::ceil(double(std::ceil(double(nposes) / PPWI)) / double(wgsize));
-        int global = gridsize;
+        int global;
+        if (gridsize) {
+          global = gridsize;
+        } else {
+          global = std::ceil(double(p.nposes()) / PPWI);
+          global = std::ceil(double(global) / double(wgsize));
+        }
         int local = wgsize;
 // clang-format off
 #pragma acc parallel loop num_gangs(global) vector_length(local)  \
