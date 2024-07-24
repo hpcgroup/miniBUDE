@@ -247,11 +247,11 @@ public:
     }
   };
 
-  [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device) const override {
+  [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device, size_t gridsize) const override {
 
     checkError(cudaSetDevice(int(device)));
 
-    Sample sample(PPWI, wgsize, p.nposes());
+    Sample sample(PPWI, wgsize, p.nposes(), gridsize);
 
     auto contextStart = now();
     auto protein = allocate(p.protein);
@@ -269,8 +269,9 @@ public:
 
     sample.contextTime = {contextStart, contextEnd};
 
-    size_t global = std::ceil(double(p.nposes()) / PPWI);
-    global = std::ceil(double(global) / double(wgsize));
+    //size_t global = std::ceil(double(p.nposes()) / PPWI);
+    //global = std::ceil(double(global) / double(wgsize));
+    size_t global = gridsize;
     size_t local = wgsize;
     size_t shared = p.ntypes() * sizeof(FFParams);
 

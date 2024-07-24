@@ -151,12 +151,12 @@ public:
     return devices;
   };
 
-  [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device) const override {
+  [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device, size_t gridsize) const override {
 
     acc_device_t device_type = acc_get_device_type();
     acc_set_device_num(int(device), device_type);
 
-    Sample sample(PPWI, wgsize, p.nposes());
+    Sample sample(PPWI, wgsize, p.nposes(), gridsize);
 
     auto contextStart = now();
 
@@ -204,8 +204,11 @@ public:
       for (size_t i = 0; i < p.totalIterations(); ++i) {
         auto kernelStart = now();
 
+        //int global = std::ceil(double(std::ceil(double(nposes) / PPWI)) / double(wgsize));
+        int global = gridsize;
+        int local = wgsize;
 // clang-format off
-#pragma acc parallel loop  \
+#pragma acc parallel loop num_gangs(global) vector_length(local)  \
         present(                                    \
             protein[:natpro], ligand[:natlig],      \
             forcefield[:ntypes], poses_0[:nposes],  \

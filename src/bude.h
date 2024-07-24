@@ -82,12 +82,12 @@ using TimePoint = std::chrono::high_resolution_clock::time_point;
 [[nodiscard]] static inline TimePoint now() { return std::chrono::high_resolution_clock::now(); }
 
 struct Sample {
-  size_t ppwi, wgsize;
+  size_t ppwi, wgsize, gridsize;
   std::vector<float> energies;
   std::vector<std::pair<TimePoint, TimePoint>> kernelTimes;
   std::optional<std::pair<TimePoint, TimePoint>> contextTime;
-  Sample(size_t ppwi, size_t wgsize, size_t nposes)
-      : ppwi(ppwi), wgsize(wgsize), energies(nposes), kernelTimes(), contextTime() {}
+  Sample(size_t ppwi, size_t wgsize, size_t nposes, size_t gridsize)
+      : ppwi(ppwi), wgsize(wgsize), energies(nposes), gridsize(gridsize), kernelTimes(), contextTime() {}
 };
 
 using Device = std::pair<size_t, std::string>;
@@ -97,5 +97,5 @@ public:
   [[nodiscard]] virtual std::string name() = 0;
   [[nodiscard]] virtual std::vector<Device> enumerateDevices() = 0;
   [[nodiscard]] virtual bool compatible(const Params &p, size_t wgsize, size_t device) const { return true; };
-  [[nodiscard]] virtual Sample fasten(const Params &p, size_t wgsize, size_t device) const = 0;
+  [[nodiscard]] virtual Sample fasten(const Params &p, size_t wgsize, size_t device, size_t gridsize) const = 0;
 };

@@ -204,6 +204,7 @@ parseParams(const std::vector<std::string> &args) {
 
   size_t nposes = 0;
   std::vector<size_t> wgsizes;
+  std::vector<size_t> gridsizes;
   std::vector<size_t> ppwis;
 
   for (size_t i = 0; i < args.size(); ++i) {
@@ -216,6 +217,7 @@ parseParams(const std::vector<std::string> &args) {
     if (read(i, arg, {"--out", "-o"}, [&](auto &&s) { params.output = s; })) continue;
     if (read(i, arg, {"--rows", "-r"}, [&](auto &&s) { return bindInt(s, params.outRows, "rows"); })) continue;
     if (read(i, arg, {"--wgsize", "-w"}, [&](auto &&s) { bindInts(s, wgsizes, "wgsize"); })) continue;
+    if (read(i, arg, {"--gridsize", "-g"}, [&](auto &&s) { bindInts(s, gridsizes, "gridsize"); })) continue;
     if (read(i, arg, {"--ppwi", "-p"}, [&](auto &&s) {
           if (s == "all") ppwis = std::vector<size_t>(PPWIs.begin(), PPWIs.end());
           else {
@@ -259,6 +261,8 @@ parseParams(const std::vector<std::string> &args) {
              "                       [optional] default=" << PPWIs[0] << "; available=" << mk_string(PPWIs) << "\n"
           << "  -w --wgsize  WGSIZE  A CSV list of work-group sizes, not all implementations support this parameter\n"
              "                       [optional] default=" << 1 << "\n"
+          << "  -g --gridsize  GRSZ  A CSV list of grid sizes, not all implementations support this parameter\n"
+             "                       [optional] default=" << 512 << "\n"
           << "     --deck    DIR     Use the DIR directory as input deck\n"
              "                       [optional] default=`" << DATA_DIR << "`\n"
           << "  -o --out     PATH    Save resulting energies to PATH (no-op if more than one PPWI/WGSIZE specified)\n"
@@ -278,11 +282,12 @@ parseParams(const std::vector<std::string> &args) {
   }
 
   if (ppwis.empty()) ppwis = {PPWIs[0]};
-  if (wgsizes.empty()) wgsizes = {1};
+  if (wgsizes.empty()) wgsizes = {64};
+  if (gridsizes.empty()) gridsizes = {1024};
 
   if (params.list) {
     // Don't read any decks if we're just listing devices
-    return {params, wgsizes, ppwis};
+    return {params, wgsizes, ppwis, gridsizes};
   }
 
   params.ligand = readNStruct<Atom>(params.deckDir + FILE_LIGAND);
@@ -321,7 +326,7 @@ parseParams(const std::vector<std::string> &args) {
 
   params.maxPoses = maxPoses;
 
-  return {params, wgsizes, ppwis};
+  return {params, wgsizes, ppwis, gridsizes};
 }
 
 double difference(float a, float b) { return std::fabs(double(a) - b) / a; }
@@ -371,7 +376,7 @@ std::pair<double, std::vector<size_t>> validate(const Sample &sample, const Para
   // expect numbers to be accurate to 2 decimal places
   // verify tolerance
   if (!valid && verbose) {
-    std::cerr << "# Verification failed for ppwi=" << s.ppwi << ", wgsize=" << s.wgsize
+    std::cerr << "# Verification failed for ppwi=" << s.ppwi << ", wgsize=" << s.wgsize << ", gridsize=" << s.gridsize
               << "; difference exceeded tolerance (" << DIFF_TOLERANCE_PCT << "%)"
               << "\n";
     std::cerr << "# Bad energies (failed/total=" << failedEntries.size() << "/" << s.energies.size()
@@ -442,7 +447,8 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
             << "max_diff_%: " << r.maxDiffPct << " }\n"
             << prefix << "   param:               { "
             << "ppwi: " << r.sample.ppwi << ", "
-            << "wgsize: " << r.sample.wgsize << " }\n"
+            << "wgsize: " << r.sample.wgsize << ", "
+            << "gridsize: " << r.sample.gridsize << " }\n"
             << prefix << "   raw_iterations:      [" << mk_string(iterationTimesMs) << "]\n"
             << prefix << "   context_ms:          " << contextMs << "\n"
             << prefix << "   sum_ms:              " << r.ms.sum << "\n"
@@ -462,16 +468,16 @@ void showHumanReadable(const Params &p, const Result &r, int indent = 1) {
 }
 
 void showCsv(const Params &p, const Result &r, bool header) {
-  if (header) std::cout << "ppwi,wgsize,sum_ms,avg_ms,min_ms,max_ms,stddev_ms,interactions/s,gflops/s,gfinst/s\n";
+  if (header) std::cout << "ppwi,wgsize,gridsize,sum_ms,avg_ms,min_ms,max_ms,stddev_ms,interactions/s,gflops/s,gfinst/s\n";
   std::cout.precision(3);
   std::cout << std::fixed;
-  std::cout << r.sample.ppwi << "," << r.sample.wgsize                                                         //
+  std::cout << r.sample.ppwi << "," << r.sample.wgsize << "," << r.sample.gridsize                             //
             << "," << r.ms.sum << "," << r.ms.mean << "," << r.ms.min << "," << r.ms.max << "," << r.ms.stdDev //
             << "," << (r.interactionsPerSec) << "," << r.gflops << "," << r.ginsts << std::endl;
 }
 
 template <size_t... Ns>
-bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<size_t> &ppwis) {
+bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<size_t> &ppwis, const std::vector<size_t> &gridsizes) {
   static_assert(sizeof...(Ns) > 0, "compile-time PPWI args must be non-empty");
 
   std::unordered_map<size_t, std::function<const std::vector<Device>()>> enumerate = {{Ns, []() {
@@ -479,16 +485,16 @@ bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<
                                                                                          return bude.enumerateDevices();
                                                                                        }}...};
 
-  std::unordered_map<size_t, std::function<const Sample(size_t, size_t)>> kernel = {
+  std::unordered_map<size_t, std::function<const Sample(size_t, size_t, size_t)>> kernel = {
       //
-      {Ns, [&p](size_t wgsize, size_t device) {
+      {Ns, [&p](size_t wgsize, size_t device, size_t gridsize) {
          auto bude = IMPL_CLS<Ns>();
          auto hp = std::make_unique<Params>(p);
          if (!bude.compatible(*hp, wgsize, device)) {
            std::cerr << "Selected device is not compatible with this implementation, results may not be correct!"
                      << std::endl;
          }
-         return bude.fasten(*hp, wgsize, device);
+         return bude.fasten(*hp, wgsize, device, gridsize);
        }}...};
 
   auto devices = enumerate[ppwis[0]]();
@@ -511,26 +517,35 @@ bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<
       std::vector<Result> results;
       for (auto &ppwi : ppwis) {
         for (auto &wgsize : wgsizes) {
+          for (auto &gridsize : gridsizes) {
 
-          if (p.nposes() < ppwi * wgsize) {
-            std::cout << " # WARNING: pose count " << p.nposes() << " <= (" << wgsize << " (wgsize) * " << ppwi
-                      << " (ppwi)), skipping" << std::endl;
-            continue;
-          }
-          if (p.nposes() % (ppwi * wgsize) != 0) {
+            /*
+            if (p.nposes() < ppwi * wgsize) {
+              std::cout << " # WARNING: pose count " << p.nposes() << " <= (" << wgsize << " (wgsize) * " << ppwi
+                        << " (ppwi)), skipping" << std::endl;
+              continue;
+            }
+            if (p.nposes() % (ppwi * wgsize) != 0) {
 
-            std::cout << " # WARNING: pose count " << p.nposes() << " % (" << wgsize << " (wgsize) * " << ppwi
-                      << " (ppwi)) != 0, skipping" << std::endl;
-            continue;
-          }
+              std::cout << " # WARNING: pose count " << p.nposes() << " % (" << wgsize << " (wgsize) * " << ppwi
+                        << " (ppwi)) != 0, skipping" << std::endl;
+              continue;
+            }
+            */
+            if (p.nposes() != (ppwi * wgsize) * gridsize) {
+              std::cout << " # WARNING: pose count " << p.nposes() << " != " << wgsize << " (wgsize) * " << ppwi
+                        << " (ppwi) * " << gridsize << " (gridsize)" << std::endl;
+              continue;
+            }
 
-          auto result = evaluate(p, kernel[ppwi](wgsize, size_t(dev.first)), true);
-          results.push_back(result);
-          std::cout << "# (ppwi=" << ppwi << ",wgsize=" << wgsize << ",valid=" << result.valid << ")" << std::endl;
-          // validate
-          if (dump || !result.valid) { // dump failures too
-            dump = false;
-            dumpResults(p, result); // only write when failure occurs
+            auto result = evaluate(p, kernel[ppwi](wgsize, size_t(dev.first), gridsize), true);
+            results.push_back(result);
+            std::cout << "# (ppwi=" << ppwi << ",wgsize=" << wgsize << ",gridsize=" << gridsize << ",valid=" << result.valid << ")" << std::endl;
+            // validate
+            if (dump || !result.valid) { // dump failures too
+              dump = false;
+              dumpResults(p, result); // only write when failure occurs
+            }
           }
         }
       }
@@ -551,7 +566,8 @@ bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<
                 << "sum_ms: " << min->ms.sum << ", "
                 << "avg_ms: " << min->ms.mean << ", "
                 << "ppwi: " << min->sample.ppwi << ", "
-                << "wgsize: " << min->sample.wgsize << " }\n";
+                << "wgsize: " << min->sample.wgsize << ", "
+                << "gridsize: " << min->sample.gridsize << " }\n";
 
       return std::all_of(results.begin(), results.end(), [](auto &r) { return r.valid; });
     }
@@ -562,7 +578,7 @@ bool run(const Params &p, const std::vector<size_t> &wgsizes, const std::vector<
 int main(int argc, char *argv[]) {
 
   auto args = std::vector<std::string>(argv + 1, argv + argc);
-  auto [params, wgsizes, ppwis] = parseParams(args);
+  auto [params, wgsizes, ppwis, gridsizes] = parseParams(args);
   if (!params.csv) {
     std::vector<std::string> compileCmds = MINIBUDE_COMPILE_COMMANDS;
     std::vector<std::string> quotedCmds;
@@ -643,8 +659,9 @@ int main(int argc, char *argv[]) {
                 << "  ppwi:\n"
                 << "    available:  [" << mk_string(PPWIs) << "]\n"
                 << "    selected:   [" << mk_string(ppwis) << "]\n"
-                << "  wgsize:       [" << mk_string(wgsizes) << "]" << std::endl;
+                << "  wgsize:       [" << mk_string(wgsizes) << "]\n"
+                << "  gridsize:     [" << mk_string(gridsizes) << "]" << std::endl;
     }
   }
-  return run<USE_PPWI>(params, wgsizes, ppwis) ? EXIT_SUCCESS : EXIT_FAILURE;
+  return run<USE_PPWI>(params, wgsizes, ppwis, gridsizes) ? EXIT_SUCCESS : EXIT_FAILURE;
 }

@@ -157,7 +157,7 @@ public:
     return devices;
   };
 
-  [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device) const override {
+  [[nodiscard]] Sample fasten(const Params &p, size_t wgsize, size_t device, size_t gridsize) const override {
 
 #ifdef OMP_TARGET
     omp_set_default_device(int(device));
@@ -172,7 +172,7 @@ public:
     }
 #endif
 
-    Sample sample(PPWI, wgsize, p.nposes());
+    Sample sample(PPWI, wgsize, p.nposes(), gridsize);
 
     auto contextStart = now();
 
@@ -235,9 +235,13 @@ public:
     for (size_t i = 0; i < p.totalIterations(); ++i) {
       auto kernelStart = now();
 
+      //int global = std::ceil(double(std::ceil(double(nposes) / PPWI)) / double(wgsize));
+      int global = gridsize;
+      int local = wgsize;
 #ifdef OMP_TARGET // clang-format off
-  #pragma omp target teams num_teams(wgsize)
-  #pragma omp distribute parallel for
+      //#pragma omp target teams num_teams(wgsize)
+      //#pragma omp distribute parallel for
+#pragma omp target teams loop num_teams(global) thread_limit(local)
 #else
   #pragma omp parallel for // note: orphaned 'omp teams' directives are prohibited
 #endif // OMP_TARGET clang-format on
