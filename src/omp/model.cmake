@@ -55,6 +55,10 @@ set(OMP_FLAGS_OFFLOAD_CLANG_AMD
         -fopenmp=libomp -fopenmp-targets=amdgcn-amd-amdhsa -Xopenmp-target=amdgcn-amd-amdhsa)
 set(OMP_FLAGS_OFFLOAD_CLANG_ARCH_FLAG
         -march=) # prefix only, arch appended by the vendor:arch tuple
+set(OMP_FLAGS_OFFLOAD_NVHPC_NVIDIA
+        -mp=gpu)
+set(OMP_FLAGS_OFFLOAD_NVHPC_ARCH_FLAG
+        -gpu=nomanaged,lineinfo,) # prefix only, arch appended by the arch value (e.g. cc80)
 
 
 set(OMP_FLAGS_CPU_INTEL
