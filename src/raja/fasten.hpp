@@ -295,7 +295,7 @@ public:
   #if defined(RAJA_ENABLE_SYCL)
     const auto deviceName = "RAJA SYCL device";
   #endif
-    devices.template emplace_back((size_t) RAJA::ExecPlace::DEVICE, deviceName);
+    devices.emplace_back((size_t) RAJA::ExecPlace::DEVICE, deviceName);
 #endif
     return devices;
   };
