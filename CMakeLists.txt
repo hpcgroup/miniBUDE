@@ -162,6 +162,7 @@ register_model(kokkos KOKKOS fasten.hpp)
 register_model(sycl-acc SYCL_ACC fasten.hpp)
 register_model(sycl-usm SYCL_USM fasten.hpp)
 register_model(acc ACC fasten.hpp)
+register_model(acc-as-omp ACC_AS_OMP fasten.hpp)
 # defining RAJA collides with the RAJA namespace so USE_RAJA
 register_model(raja USE_RAJA fasten.hpp)
 register_model(tbb TBB fasten.hpp)

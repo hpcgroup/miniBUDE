@@ -72,6 +72,8 @@
   #include "kokkos/fasten.hpp"
 #elif defined(ACC)
   #include "acc/fasten.hpp"
+#elif defined(ACC_AS_OMP)
+  #include "acc-as-omp/fasten.hpp"
 #elif defined(SYCL_ACC)
   #include "sycl-acc/fasten.hpp"
 #elif defined(SYCL_USM)
