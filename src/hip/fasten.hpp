@@ -25,8 +25,8 @@ static __global__ void fasten_main(int ntypes, int natlig, int natpro,
   ix = ix < numTransforms ? ix : numTransforms - PPWI;
 
   extern __shared__ FFParams forcefield[];
-  if (ix < ntypes) {
-    forcefield[ix] = global_forcefield[ix];
+  for(int t=threadIdx.x ; t<ntypes; t+=blockDim.x){
+    forcefield[t]=global_forcefield[t]; //fill LDS for all the blocks 
   }
 
   // Compute transformation matrix to private memory
